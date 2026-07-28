@@ -625,7 +625,7 @@ document.addEventListener('keydown', (event) => {
 
 function handleLogoutSP() {
   clearCurrentUser();
-  window.location.href = 'login_signup.html';
+  window.location.href = 'login.html';
 }
 
 (function initStudentPortal() {

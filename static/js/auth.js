@@ -4,12 +4,12 @@
 // and redirects based on user.role.
 
 const ROLE_REDIRECTS = {
-  super_admin: 'super_admin.html',
-  admin: 'student_registration_system.html',
-  staff: 'student_registration_system.html',
+  super_admin: 'admin.html',
+  admin: 'collage_portal.html',
+  staff: 'collage_portal.html',
   student: 'student_portal.html',
 };
-const DEFAULT_REDIRECT = 'student_registration_system.html';
+const DEFAULT_REDIRECT = 'admin.html';
 
 function redirectForRole(user) {
   return ROLE_REDIRECTS[user?.role] || DEFAULT_REDIRECT;

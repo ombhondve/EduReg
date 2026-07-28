@@ -71,4 +71,98 @@ const SuperAdminApi = {
   getActivityLog(limit = 20) {
     return requestApi(`/superadmin/activity-log?limit=${limit}`);
   },
+
+  // ---- Students (cross-tenant, read-only) ----
+  // GET /superadmin/students?search=&school_id=&status=&plan=&page=&per_page=
+  getStudents(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.schoolId) params.set('school_id', filters.schoolId);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.plan) params.set('plan', filters.plan);
+    if (filters.page) params.set('page', filters.page);
+    if (filters.perPage) params.set('per_page', filters.perPage);
+    const query = params.toString();
+    return requestApi(`/superadmin/students${query ? `?${query}` : ''}`);
+  },
+  getStudent(studentId) {
+    return requestApi(`/superadmin/students/${studentId}`);
+  },
+  impersonateSchoolAdmin(schoolId) {
+    // POST /superadmin/schools/<id>/impersonate — issues a scoped, audit-logged session token
+    return requestApi(`/superadmin/schools/${schoolId}/impersonate`, { method: 'POST' });
+  },
+
+  // ---- Onboarding pipeline ----
+  // GET /superadmin/onboarding — schools grouped by pipeline stage
+  getOnboardingPipeline() {
+    return requestApi('/superadmin/onboarding');
+  },
+  moveOnboardingStage(schoolId, stage) {
+    return requestApi(`/superadmin/onboarding/${schoolId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ stage }),
+    });
+  },
+
+  // ---- Revenue ----
+  // GET /superadmin/revenue — MRR, plan mix, renewals due, churn
+  getRevenue() {
+    return requestApi('/superadmin/revenue');
+  },
+
+  // ---- Support tickets ----
+  // GET /superadmin/tickets?status=&priority=&school_id=
+  getTickets(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.set('status', filters.status);
+    if (filters.priority) params.set('priority', filters.priority);
+    if (filters.schoolId) params.set('school_id', filters.schoolId);
+    const query = params.toString();
+    return requestApi(`/superadmin/tickets${query ? `?${query}` : ''}`);
+  },
+  updateTicketStatus(ticketId, status) {
+    return requestApi(`/superadmin/tickets/${ticketId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // ---- Impersonation audit log ----
+  // GET /superadmin/impersonation-log?limit=
+  getImpersonationLog(limit = 50) {
+    return requestApi(`/superadmin/impersonation-log?limit=${limit}`);
+  },
+
+  // ---- Notifications / broadcasts ----
+  // GET  /superadmin/notifications
+  // POST /superadmin/notifications  { title, body, audience }
+  getNotifications() {
+    return requestApi('/superadmin/notifications');
+  },
+  sendNotification(payload) {
+    return requestApi('/superadmin/notifications', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ---- Feature flags ----
+  // GET /superadmin/feature-flags
+  // PUT /superadmin/feature-flags/<key>  { enabled, scope, planOrSchoolId }
+  getFeatureFlags() {
+    return requestApi('/superadmin/feature-flags');
+  },
+  updateFeatureFlag(key, payload) {
+    return requestApi(`/superadmin/feature-flags/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ---- API & usage monitor ----
+  // GET /superadmin/api-usage — per-school API call volume, storage %, rate-limit hits
+  getApiUsage() {
+    return requestApi('/superadmin/api-usage');
+  },
 };

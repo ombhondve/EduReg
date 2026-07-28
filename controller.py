@@ -1,5 +1,5 @@
 from flask import Flask, Response, jsonify, render_template, request
-from model import controller
+from shared.model import controller
 import bcrypt
 import jwt
 import csv
@@ -36,11 +36,11 @@ def index():
 def super_admin():
     return render_template("super_admin.html")
 
-@app.route('/students', methods=['GET'])
+@app.route('/student', methods=['GET'])
 def students():
     return render_template("student_portal.html")
 
-@app.route('/login_signup.html', methods=['GET'])
+@app.route('/login_signup', methods=['GET'])
 def dashboard():
     return render_template("login_signup.html")
 
@@ -106,9 +106,9 @@ def refresh_token():
     }, SECRET_KEY, algorithm="HS256")
     return jsonify({"accessToken": new_access_token}), 200
 
-@app.route("/student_registration_system.html", methods=["GET"])
+@app.route("/collage_system", methods=["GET"])
 def student_registration():
-    return render_template("student_registration_system.html")
+    return render_template("collage_system.html")
 
 @app.route("/stats")
 def get_stats():

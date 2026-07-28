@@ -9,10 +9,13 @@ const API_BASE = window.API_BASE || 'http://127.0.0.1:5000';
 async function requestApi(endpoint, options = {}, isRetry = false) {
   const user = getCurrentUser();
   const token = user?.accessToken;
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
-      'Content-Type': 'application/json',
+      // Don't set Content-Type for FormData — the browser needs to add its
+      // own multipart boundary, which it can only do if we leave this out.
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     },
@@ -101,6 +104,108 @@ const StudentApi = {
 
   exportStudentsCsv() {
     window.location.href = `${API_BASE}/export/students.csv`;
+  },
+};
+
+// ===== DOCUMENTS API =====
+// A student can have MANY documents (ID proof, marksheets, TC, photo, and
+// re-uploads after a rejection) — so this is modeled as its own resource
+// with a one-to-many relationship to a student, not one field on the
+// student record. Suggested backend shape (e.g. SQL):
+//   documents(id, student_id, doc_type, file_name, file_path/storage_key,
+//             mime_type, size_bytes, status, uploaded_at,
+//             reviewed_by, reviewed_at, review_note)
+//
+// Expected routes:
+//   GET    /students/:studentId/documents        -> Document[] for one student
+//   GET    /documents?status=&type=&student=     -> Document[] across all students
+//   POST   /students/:studentId/documents         (multipart/form-data: file, docType, status)
+//                                                 -> created Document
+//   PATCH  /documents/:documentId                 ({ status, reviewNote }) -> updated Document
+//   DELETE /documents/:documentId
+//   GET    /documents/:documentId/file            -> the raw stored file (view/download)
+//
+// Expected Document shape returned by the API:
+//   { id, studentId, studentName, docType, fileName, fileUrl, mimeType,
+//     sizeBytes, status, uploadedAt, reviewedBy, reviewedAt, reviewNote }
+const DocumentsApi = {
+  // All documents, optionally filtered — used by the Documents/Verification page.
+  getDocuments(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.set('status', filters.status);
+    if (filters.type) params.set('type', filters.type);
+    if (filters.student) params.set('student', filters.student);
+    const query = params.toString();
+    return requestApi(`/documents${query ? `?${query}` : ''}`);
+  },
+
+  // Every document belonging to a single student (this is what makes
+  // "12+ documents for one student" work: it's a list, not a single field).
+  getStudentDocuments(studentId) {
+    return requestApi(`/students/${studentId}/documents`);
+  },
+
+  // file: a File object from an <input type="file">.
+  uploadDocument(studentId, { file, docType, status }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('docType', docType);
+    if (status) formData.append('status', status);
+    return requestApi(`/students/${studentId}/documents`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  updateDocumentStatus(documentId, status, reviewNote = '') {
+    return requestApi(`/documents/${documentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reviewNote }),
+    });
+  },
+
+  deleteDocument(documentId) {
+    return requestApi(`/documents/${documentId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Not a JSON call — used as a direct href/target for viewing or
+  // downloading the stored file (image/PDF/etc).
+  getFileUrl(documentId) {
+    return `${API_BASE}/documents/${documentId}/file`;
+  },
+};
+
+const NotificationApi = {
+  // filters: { type, audience, limit }
+  getNotifications(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.type) params.set('type', filters.type);
+    if (filters.audience) params.set('audience', filters.audience);
+    if (filters.limit) params.set('limit', filters.limit);
+    const query = params.toString();
+    return requestApi(`/notifications${query ? `?${query}` : ''}`);
+  },
+
+  // payload: { title, message, type, audience: 'all'|'course'|'status'|'student', audienceValue, studentId }
+  sendNotification(payload) {
+    return requestApi('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteNotification(notificationId) {
+    return requestApi(`/notifications/${notificationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  resendNotification(notificationId) {
+    return requestApi(`/notifications/${notificationId}/resend`, {
+      method: 'POST',
+    });
   },
 };
 

@@ -55,3 +55,32 @@
 .notice-time{font-size:0.72rem;color:var(--text3);margin-top:6px}
 
 @media(max-width:768px){.sp-field-grid{grid-template-columns:1fr}}
+
+/* Dashboard attention rows */
+.sp-alert-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--radius-sm);font-size:0.83rem;cursor:pointer;transition:.15s}
+.sp-alert-row:hover{transform:translateX(2px)}
+.sp-alert-amber{background:#fffbeb;color:#92400e}
+.sp-alert-red{background:#fef2f2;color:#991b1b}
+.sp-alert-blue{background:#eff6ff;color:#1e40af}
+
+/* Digital ID card */
+.sp-idcard{width:290px;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-lg);margin:0.5rem 0}
+.sp-idcard-top{background:var(--primary);color:#fff;padding:14px 18px}
+.sp-idcard-logo{font-family:'Playfair Display',serif;font-size:1.1rem}
+.sp-idcard-logo span{color:var(--accent)}
+.sp-idcard-institute{font-size:0.6rem;letter-spacing:1.5px;color:rgba(255,255,255,0.5);margin-top:2px}
+.sp-idcard-body{display:flex;gap:14px;padding:18px}
+.sp-idcard-photo{width:60px;height:60px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.15rem;flex-shrink:0}
+.sp-idcard-info{flex:1;min-width:0}
+.sp-idcard-name{font-weight:700;font-size:0.96rem;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-idcard-row{display:flex;justify-content:space-between;gap:10px;font-size:0.72rem;color:var(--text3);padding:2px 0}
+.sp-idcard-row b{color:var(--text);font-weight:600;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-idcard-bottom{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px dashed var(--border)}
+.sp-qr-grid{display:grid;grid-template-columns:repeat(8,6px);grid-template-rows:repeat(8,6px);gap:1px}
+.sp-idcard-status{font-size:0.72rem;font-weight:600;color:var(--success)}
+
+@media print{
+  body *{visibility:hidden}
+  #idCardPrintArea,#idCardPrintArea *{visibility:visible}
+  #idCardPrintArea{position:fixed;top:40px;left:50%;transform:translateX(-50%)}
+}

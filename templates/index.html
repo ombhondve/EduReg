@@ -28,14 +28,14 @@
   .ribbon:nth-child(3){animation:flyThrough 1.4s cubic-bezier(0.55,0,0.85,1) .46s forwards}
   .ribbon:nth-child(4){animation:flyThrough 1.4s cubic-bezier(0.55,0,0.85,1) .64s forwards}
   .ribbon:nth-child(5){animation:flyThrough 1.4s cubic-bezier(0.55,0,0.85,1) .82s forwards}
- 
+
   @keyframes flyThrough{
     0%{opacity:0;transform:translateZ(-1400px) scale(0.3)}
     12%{opacity:1}
     70%{opacity:0.9}
     100%{opacity:0;transform:translateZ(500px) scale(2.6)}
   }
- 
+
   .wordmark{
     position:relative;font-family:'Playfair Display',serif;font-weight:700;
     font-size:2.4rem;letter-spacing:10px;color:#fff;
@@ -44,15 +44,15 @@
     animation:lockIn .6s cubic-bezier(0.22,1,0.36,1) 1.55s forwards;
   }
   .wordmark span{color:#e94560}
- 
+
   @keyframes lockIn{
     0%{opacity:0;transform:scale(1.5)}
     60%{opacity:1;transform:scale(0.95)}
     100%{opacity:1;transform:scale(1);text-shadow:0 0 0 rgba(233,69,96,0)}
   }
- 
+
   @keyframes sceneOut{to{opacity:0;visibility:hidden}}
- 
+
   @media (prefers-reduced-motion:reduce){
     .ribbon,.wordmark,.scene{animation:none!important;opacity:1!important;transform:none!important}
   }
@@ -69,15 +69,22 @@
   </div>
   <script>
     var TARGET_LOGIN = 'login_signup.html';
-    var TARGET_DASHBOARD = 'student_registration_system.html';
+    var ROLE_REDIRECTS = {
+      super_admin: 'super_admin.html',
+      admin: 'student_registration_system.html',
+      staff: 'student_registration_system.html',
+      student: 'student_portal.html',
+    };
+    var DEFAULT_REDIRECT = 'student_registration_system.html';
     var SESSION_FLAG = 'eduregIntroPlayed';
- 
+
     function goNext(){
       var user = null;
       try { user = JSON.parse(localStorage.getItem('eduregUser') || 'null'); } catch(e){}
-      window.location.href = user ? TARGET_DASHBOARD : TARGET_LOGIN;
+      if (!user) { window.location.href = TARGET_LOGIN; return; }
+      window.location.href = ROLE_REDIRECTS[user.role] || DEFAULT_REDIRECT;
     }
- 
+
     if (sessionStorage.getItem(SESSION_FLAG)) {
       goNext();
     } else {

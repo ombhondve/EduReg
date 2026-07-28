@@ -112,27 +112,65 @@ async function renderOverview() {
     </div>`;
 }
 
-async function renderSchools() {
-  const schools = await apiOrDemo(() => SuperAdminApi.getSchools(), DEMO_DATA.schools);
+async function renderSchools(preserveFilters) {
+  const planVal = preserveFilters ? document.getElementById('planFilter')?.value : '';
+  const statusVal = preserveFilters ? document.getElementById('statusFilter')?.value : '';
+  const searchVal = preserveFilters ? document.getElementById('schoolSearchInput')?.value : '';
+  const schools = await apiOrDemo(
+    () => SuperAdminApi.getSchools({ plan: planVal, status: statusVal, search: searchVal }),
+    DEMO_DATA.schools
+  );
+  window._allSchools = schools;
+  const filtered = applySchoolFilters(schools, searchVal, planVal, statusVal);
   const el = document.getElementById('saMainContent');
   el.innerHTML = `
     <div class="toolbar fade-in">
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="Search schools..." oninput="filterSchools(this.value)">
+        <input type="text" id="schoolSearchInput" placeholder="Search schools..." value="${searchVal || ''}" oninput="filterSchools()">
       </div>
-      <select id="planFilter" onchange="renderSchools()"><option value="">All plans</option><option value="trial">Trial</option><option value="basic">Basic</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select>
-      <select id="statusFilter" onchange="renderSchools()"><option value="">All status</option><option>Active</option><option>Trial</option><option>Suspended</option></select>
+      <select id="planFilter" onchange="filterSchools()">
+        <option value="">All plans</option>
+        <option value="trial" ${planVal === 'trial' ? 'selected' : ''}>Trial</option>
+        <option value="basic" ${planVal === 'basic' ? 'selected' : ''}>Basic</option>
+        <option value="pro" ${planVal === 'pro' ? 'selected' : ''}>Pro</option>
+        <option value="enterprise" ${planVal === 'enterprise' ? 'selected' : ''}>Enterprise</option>
+      </select>
+      <select id="statusFilter" onchange="filterSchools()">
+        <option value="">All status</option>
+        <option ${statusVal === 'Active' ? 'selected' : ''}>Active</option>
+        <option ${statusVal === 'Trial' ? 'selected' : ''}>Trial</option>
+        <option ${statusVal === 'Suspended' ? 'selected' : ''}>Suspended</option>
+      </select>
     </div>
     <div class="card fade-in">
       <div class="table-wrap">
         <table>
           <thead><tr><th>School</th><th>Admin contact</th><th>Plan</th><th>Usage</th><th>Status</th><th>Created</th><th></th></tr></thead>
-          <tbody id="schoolsTbody">${schools.map(schoolRow).join('')}</tbody>
+          <tbody id="schoolsTbody">${renderSchoolRowsOrEmpty(filtered)}</tbody>
         </table>
       </div>
     </div>`;
-  window._allSchools = schools;
+}
+
+function applySchoolFilters(schools, search, plan, status) {
+  return schools.filter(s => {
+    const matchesSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.subdomain.toLowerCase().includes(search.toLowerCase());
+    const matchesPlan = !plan || s.plan === plan;
+    const matchesStatus = !status || s.status === status;
+    return matchesSearch && matchesPlan && matchesStatus;
+  });
+}
+
+function renderSchoolRowsOrEmpty(rows) {
+  if (!rows.length) {
+    return `<tr><td colspan="7"><div class="empty-state">
+      <div class="empty-icon">🏫</div>
+      <div class="empty-title">No schools match these filters</div>
+      <div style="font-size:0.82rem">Try clearing the search or filters, or add a new school.</div>
+    </div></td></tr>`;
+  }
+  return rows.map(schoolRow).join('');
 }
 
 function schoolRow(s) {
@@ -163,24 +201,32 @@ function schoolRow(s) {
   </tr>`;
 }
 
-function filterSchools(term) {
-  const rows = (window._allSchools || []).filter(s =>
-    s.name.toLowerCase().includes(term.toLowerCase()) || s.subdomain.toLowerCase().includes(term.toLowerCase()));
-  document.getElementById('schoolsTbody').innerHTML = rows.map(schoolRow).join('');
+function filterSchools() {
+  const search = document.getElementById('schoolSearchInput')?.value || '';
+  const plan = document.getElementById('planFilter')?.value || '';
+  const status = document.getElementById('statusFilter')?.value || '';
+  const filtered = applySchoolFilters(window._allSchools || [], search, plan, status);
+  document.getElementById('schoolsTbody').innerHTML = renderSchoolRowsOrEmpty(filtered);
 }
 
 async function renderAdmins() {
   const schools = await apiOrDemo(() => SuperAdminApi.getSchools(), DEMO_DATA.schools);
   const el = document.getElementById('saMainContent');
-  el.innerHTML = `<div class="card fade-in"><div class="table-wrap"><table>
-    <thead><tr><th>Admin</th><th>School</th><th>Email</th><th>Invite status</th><th></th></tr></thead>
-    <tbody>${schools.map(s => `<tr>
+  const rowsHtml = schools.length ? schools.map(s => `<tr>
       <td><div class="school-name">${s.adminName}</div></td>
       <td>${s.name}</td>
       <td style="color:var(--text3)">${s.adminEmail}</td>
       <td><span class="status status-active"><span class="status-dot"></span>Accepted</span></td>
       <td><button class="btn btn-secondary btn-sm" onclick="resendInvite(${s.id})">Resend invite</button></td>
-    </tr>`).join('')}</tbody>
+    </tr>`).join('')
+    : `<tr><td colspan="5"><div class="empty-state">
+        <div class="empty-icon">👤</div>
+        <div class="empty-title">No school admins yet</div>
+        <div style="font-size:0.82rem">Admins appear here once you onboard a school.</div>
+      </div></td></tr>`;
+  el.innerHTML = `<div class="card fade-in"><div class="table-wrap"><table>
+    <thead><tr><th>Admin</th><th>School</th><th>Email</th><th>Invite status</th><th></th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
   </table></div></div>`;
 }
 
@@ -204,12 +250,16 @@ async function renderPlans() {
 async function renderLogs() {
   const log = await apiOrDemo(() => SuperAdminApi.getActivityLog(), DEMO_DATA.activityLog);
   const el = document.getElementById('saMainContent');
-  el.innerHTML = `<div class="card fade-in"><div class="card-body">
-    ${log.map(l => `<div class="log-row">
+  const logHtml = log.length ? log.map(l => `<div class="log-row">
       <div class="log-dot ${l.type}"></div>
       <div><div class="log-text">${l.text}</div><div class="log-time">${l.time}</div></div>
-    </div>`).join('')}
-  </div></div>`;
+    </div>`).join('')
+    : `<div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title">No activity yet</div>
+        <div style="font-size:0.82rem">Actions across the platform will show up here.</div>
+      </div>`;
+  el.innerHTML = `<div class="card fade-in"><div class="card-body">${logHtml}</div></div>`;
 }
 
 function renderSettings() {

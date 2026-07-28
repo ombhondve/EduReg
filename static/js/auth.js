@@ -1,9 +1,19 @@
 // ===== AUTH PAGE LOGIC =====
 // Talks to /auth/login and /auth/signup (see AuthApi in api-client.js).
 // On success, stores the returned user in localStorage via setCurrentUser()
-// and redirects into the main app.
+// and redirects based on user.role.
 
-const REDIRECT_TARGET = 'student_registration_system.html';
+const ROLE_REDIRECTS = {
+  super_admin: 'super_admin.html',
+  admin: 'student_registration_system.html',
+  staff: 'student_registration_system.html',
+  student: 'student_portal.html',
+};
+const DEFAULT_REDIRECT = 'student_registration_system.html';
+
+function redirectForRole(user) {
+  return ROLE_REDIRECTS[user?.role] || DEFAULT_REDIRECT;
+}
 
 // ---------- Tab switching ----------
 function setAuthMode(mode){
@@ -70,10 +80,11 @@ async function handleLogin(event){
     const res = await AuthApi.login(email, password);
     // Backend returns { message, user: {...}, accessToken, refreshToken } — merge
     // the token fields onto the user object so getCurrentUser() carries everything.
+    // user.role must be included by the backend for the redirect below to work.
     const user = { ...(res.user || res), accessToken: res.accessToken, refreshToken: res.refreshToken };
     setCurrentUser(user);
     showToast('Signed in successfully', 'success');
-    setTimeout(() => { window.location.href = REDIRECT_TARGET; }, 400);
+    setTimeout(() => { window.location.href = redirectForRole(user); }, 400);
   } catch (err) {
     showToast(err.message || 'Invalid email or password', 'error');
     btn.disabled = false;
@@ -113,7 +124,7 @@ async function handleSignup(event){
       // Backend logged the user in immediately
       setCurrentUser(user);
       showToast('Account created', 'success');
-      setTimeout(() => { window.location.href = REDIRECT_TARGET; }, 400);
+      setTimeout(() => { window.location.href = redirectForRole(user); }, 400);
     } else {
       showToast('Account created — please log in', 'success');
       setAuthMode('login');
@@ -163,9 +174,9 @@ function buildLedger(){
 // ---------- Init ----------
 (function initAuthPage(){
   buildLedger();
-  // If already signed in, skip straight to the app
+  // If already signed in, skip straight to the right portal
   const existing = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (existing) {
-    window.location.href = REDIRECT_TARGET;
+    window.location.href = redirectForRole(existing);
   }
 })();

@@ -160,6 +160,14 @@ async function renderProfileSP() {
 async function renderCoursesSP() {
   const courses = await apiOrDemoSP(() => StudentPortalApi.getCourses(), DEMO_DATA_SP.courses);
   const el = document.getElementById('spMainContent');
+  if (!courses.length) {
+    el.innerHTML = `<div class="card fade-in"><div class="empty-state">
+      <div class="empty-icon">📚</div>
+      <div class="empty-title">No courses enrolled yet</div>
+      <div style="font-size:0.82rem">Your enrolled courses will appear here once added by staff.</div>
+    </div></div>`;
+    return;
+  }
   el.innerHTML = `<div class="sp-course-grid fade-in">
     ${courses.map(c => `
       <div class="sp-course-card">
@@ -174,13 +182,19 @@ async function renderCoursesSP() {
 async function renderGradesSP() {
   const grades = await apiOrDemoSP(() => StudentPortalApi.getGrades(), DEMO_DATA_SP.grades);
   const el = document.getElementById('spMainContent');
-  el.innerHTML = `<div class="card fade-in"><div class="table-wrap"><table>
-    <thead><tr><th>Course</th><th>Term</th><th>Grade</th><th>GPA</th><th>Recorded</th></tr></thead>
-    <tbody>${grades.map(g => `<tr>
+  const rowsHtml = grades.length ? grades.map(g => `<tr>
       <td>${g.course}</td><td>${g.term}</td>
       <td><span class="grade-badge grade-${g.grade.toLowerCase()}">${g.grade}</span></td>
       <td>${g.gpa}</td><td style="color:var(--text3);font-size:0.8rem">${g.date}</td>
-    </tr>`).join('')}</tbody>
+    </tr>`).join('')
+    : `<tr><td colspan="5"><div class="empty-state">
+        <div class="empty-icon">🎓</div>
+        <div class="empty-title">No grades recorded yet</div>
+        <div style="font-size:0.82rem">Grades will show up here once your instructors submit them.</div>
+      </div></td></tr>`;
+  el.innerHTML = `<div class="card fade-in"><div class="table-wrap"><table>
+    <thead><tr><th>Course</th><th>Term</th><th>Grade</th><th>GPA</th><th>Recorded</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
   </table></div></div>`;
 }
 
@@ -238,6 +252,14 @@ async function renderFeesSP() {
 async function renderNoticesSP() {
   const notices = await apiOrDemoSP(() => StudentPortalApi.getNotices(), DEMO_DATA_SP.notices);
   const el = document.getElementById('spMainContent');
+  if (!notices.length) {
+    el.innerHTML = `<div class="card fade-in"><div class="empty-state">
+      <div class="empty-icon">🔔</div>
+      <div class="empty-title">No notices right now</div>
+      <div style="font-size:0.82rem">Announcements from your institution will appear here.</div>
+    </div></div>`;
+    return;
+  }
   el.innerHTML = `<div class="fade-in">${notices.map(noticeCardSP).join('')}</div>`;
 }
 

@@ -28,6 +28,18 @@ def require_auth(f):
         return f(*args, **kwargs)
     return wrapper
 
+@app.route('/', methods=['GET'])
+def index():
+    return render_template("index.html")
+
+@app.route('/super_admin', methods=['GET'])
+def super_admin():
+    return render_template("super_admin.html")
+
+@app.route('/students', methods=['GET'])
+def students():
+    return render_template("student_portal.html")
+
 @app.route('/login_signup.html', methods=['GET'])
 def dashboard():
     return render_template("login_signup.html")

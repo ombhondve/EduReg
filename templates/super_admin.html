@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Admin — EduReg Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/style.css">
+<link rel="stylesheet" href="static/css/superadmin.css">
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app">
+  <aside class="sidebar sa-sidebar">
+    <div class="logo-area">
+      <div class="logo">Edu<span>Reg</span></div>
+      <div class="logo-sub">Platform Control</div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" data-page="overview" onclick="navigateSA('overview')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-section">Tenants</div>
+      <div class="nav-item" data-page="schools" onclick="navigateSA('schools')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
+        <span>Schools</span>
+      </div>
+      <div class="nav-item" data-page="admins" onclick="navigateSA('admins')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>School Admins</span>
+      </div>
+      <div class="nav-section">Billing</div>
+      <div class="nav-item" data-page="plans" onclick="navigateSA('plans')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        <span>Plans & Billing</span>
+      </div>
+      <div class="nav-section">System</div>
+      <div class="nav-item" data-page="logs" onclick="navigateSA('logs')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        <span>Activity Log</span>
+      </div>
+      <div class="nav-item" data-page="settings" onclick="navigateSA('settings')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Platform Settings</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="avatar sa-avatar">SA</div>
+        <div class="user-info">
+          <p id="saUserName">Platform Owner</p>
+          <span>Super Admin</span>
+        </div>
+        <button class="logout-btn" title="Log out" onclick="handleLogoutSA()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="page-title">
+        <span id="saPageTitle">Platform overview</span>
+        <small id="saPageSubtitle">All schools on EduReg</small>
+      </div>
+      <div class="topbar-actions" id="saTopbarActions">
+        <button class="btn btn-primary" onclick="openAddSchoolModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add School
+        </button>
+      </div>
+    </header>
+
+    <div class="content" id="saMainContent"></div>
+  </div>
+</div>
+
+<!-- Add School Modal -->
+<div class="modal-overlay" id="schoolModal" onclick="if(event.target===this)closeSchoolModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="schoolModalTitle">Onboard new school</div>
+      <button class="btn-icon" onclick="closeSchoolModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section">
+        <div class="form-section-title">Institution details</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>School / College Name *</label>
+            <input type="text" id="schName" placeholder="e.g. Sunrise Institute of Technology">
+          </div>
+          <div class="form-group">
+            <label>Subdomain *</label>
+            <input type="text" id="schSubdomain" placeholder="sunrise" oninput="previewSubdomain()">
+            <div class="field-hint" id="subdomainPreview">sunrise.edureg.app</div>
+          </div>
+          <div class="form-group">
+            <label>Institution Type</label>
+            <select class="form-select" id="schType">
+              <option>College</option><option>University</option>
+              <option>School (K-12)</option><option>Coaching Institute</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Registered Address</label>
+            <textarea id="schAddress" placeholder="Street, city, state, postal code"></textarea>
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" id="schCity" placeholder="Nashik">
+          </div>
+          <div class="form-group">
+            <label>Country</label>
+            <input type="text" id="schCountry" placeholder="India">
+          </div>
+          <div class="form-group">
+            <label>Timezone</label>
+            <select class="form-select" id="schTimezone">
+              <option>Asia/Kolkata</option><option>Asia/Dubai</option>
+              <option>Europe/London</option><option>America/New_York</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Official Website</label>
+            <input type="url" id="schWebsite" placeholder="https://sunrise.edu">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Primary admin contact</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="adminName" placeholder="Registrar / IT head name">
+          </div>
+          <div class="form-group">
+            <label>Designation</label>
+            <input type="text" id="adminTitle" placeholder="e.g. Registrar">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="adminEmail" placeholder="admin@sunrise.edu">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="adminPhone" placeholder="+91 98765 43210">
+          </div>
+        </div>
+        <div class="sa-invite-note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          An invite link with a one-time setup token will be sent to this email. No password is set here.
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Plan & limits</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Subscription Plan *</label>
+            <select class="form-select" id="schPlan" onchange="applyPlanDefaults()">
+              <option value="trial">Trial (14 days)</option>
+              <option value="basic">Basic</option>
+              <option value="pro">Pro</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Billing Cycle</label>
+            <select class="form-select" id="schBillingCycle">
+              <option>Monthly</option><option>Annual</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Max Students</label>
+            <input type="number" id="schMaxStudents" placeholder="500">
+          </div>
+          <div class="form-group">
+            <label>Max Staff Accounts</label>
+            <input type="number" id="schMaxStaff" placeholder="20">
+          </div>
+          <div class="form-group">
+            <label>Storage Limit (GB)</label>
+            <input type="number" id="schStorage" placeholder="10">
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-select" id="schStatus">
+              <option>Active</option><option>Trial</option>
+              <option>Suspended</option><option>Pending Setup</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Internal notes</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <textarea id="schNotes" placeholder="Sales contact, contract terms, special arrangements..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeSchoolModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSchool()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Create School & Send Invite
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- School Detail Drawer -->
+<div class="modal-overlay" id="schoolDetailModal" onclick="if(event.target===this)closeOverlaySA('schoolDetailModal')">
+  <div class="modal sa-detail-modal">
+    <div class="modal-header">
+      <div class="modal-title">School details</div>
+      <button class="btn-icon" onclick="closeOverlaySA('schoolDetailModal')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="schoolDetailBody"></div>
+  </div>
+</div>
+
+<!-- Confirm Suspend/Delete Modal -->
+<div class="modal-overlay" id="confirmModalSA">
+  <div class="confirm-modal">
+    <div class="confirm-icon" id="confirmIconSA">⚠️</div>
+    <div class="confirm-title" id="confirmTitleSA">Suspend this school?</div>
+    <div class="confirm-text" id="confirmTextSA">Staff and students at this school will lose access immediately. This can be reversed.</div>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" onclick="closeConfirmSA()">Cancel</button>
+      <button class="btn btn-danger" id="confirmActionBtnSA" onclick="confirmActionSA()">Suspend</button>
+    </div>
+  </div>
+</div>
+
+<script src="static/js/api-client.js"></script>
+<script src="static/js/superadmin-api-client.js"></script>
+<script src="static/js/superadmin.js"></script>
+</body>
+</html>

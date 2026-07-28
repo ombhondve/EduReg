@@ -1,0 +1,57 @@
+/* ===== STUDENT PORTAL — extends tokens from style.css (:root) ===== */
+
+/* Nav notification badge */
+.nav-item{position:relative}
+.nav-badge{background:var(--accent);color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:99px;margin-left:auto}
+
+/* Profile header card */
+.sp-profile-header{display:flex;align-items:center;gap:1.25rem;background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1.5rem}
+.sp-profile-avatar{width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;flex-shrink:0}
+.sp-profile-name{font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--text)}
+.sp-profile-meta{font-size:0.85rem;color:var(--text3);margin-top:2px}
+
+/* Read-only field grid (profile page) */
+.sp-field-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.sp-field{display:flex;flex-direction:column;gap:4px}
+.sp-field-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--text3);font-weight:600}
+.sp-field-value{font-size:0.9rem;color:var(--text)}
+.sp-readonly-note{display:flex;align-items:center;gap:8px;background:var(--surface2);color:var(--text2);font-size:0.8rem;padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:1.25rem}
+.sp-readonly-note svg{flex-shrink:0}
+
+/* Course cards */
+.sp-course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.sp-course-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);padding:1.25rem}
+.sp-course-code{font-size:0.7rem;font-weight:700;letter-spacing:1px;color:var(--accent);text-transform:uppercase}
+.sp-course-name{font-weight:600;font-size:1rem;margin:4px 0 8px}
+.sp-course-meta{font-size:0.78rem;color:var(--text3);display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:10px;margin-top:6px}
+
+/* Grade badges */
+.grade-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:4px 8px;border-radius:6px;font-size:0.78rem;font-weight:700}
+.grade-a{background:#f0fdf4;color:#16a34a}
+.grade-b{background:#eff6ff;color:#2563eb}
+.grade-c{background:#fffbeb;color:#d97706}
+.grade-d{background:#fef2f2;color:#dc2626}
+
+/* Attendance ring */
+.sp-att-wrap{display:flex;align-items:center;gap:1.5rem;background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1.5rem}
+.sp-att-ring{position:relative;width:100px;height:100px;flex-shrink:0}
+.sp-att-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:700;color:var(--text)}
+.sp-att-detail{flex:1}
+.sp-att-row{display:flex;justify-content:space-between;font-size:0.85rem;padding:5px 0;border-bottom:1px solid var(--border)}
+.sp-att-row:last-child{border-bottom:none}
+
+/* Fee status */
+.sp-fee-card{background:var(--surface);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1rem}
+.sp-fee-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
+.sp-fee-amount{font-size:1.6rem;font-weight:700;color:var(--text)}
+.sp-fee-label{font-size:0.78rem;color:var(--text3)}
+
+/* Notices */
+.notice-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:1rem 1.2rem;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
+.notice-card.unread{border-left:3px solid var(--accent)}
+.notice-icon{width:36px;height:36px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text2)}
+.notice-title{font-weight:600;font-size:0.9rem}
+.notice-body{font-size:0.82rem;color:var(--text2);margin-top:2px}
+.notice-time{font-size:0.72rem;color:var(--text3);margin-top:6px}
+
+@media(max-width:768px){.sp-field-grid{grid-template-columns:1fr}}

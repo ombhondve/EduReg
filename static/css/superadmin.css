@@ -1,0 +1,70 @@
+/* ===== SUPER ADMIN — extends tokens from style.css (:root) ===== */
+
+.sa-sidebar{background:#12121f}
+.sa-avatar{background:var(--gold)}
+
+/* Platform stat cards */
+.sa-stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
+.sa-stat-card{background:var(--surface);border-radius:var(--radius-lg);padding:1.25rem 1.5rem;border:1px solid var(--border);box-shadow:var(--shadow)}
+.sa-stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sa-stat-label{font-size:0.78rem;color:var(--text3);font-weight:500}
+.sa-stat-value{font-size:1.7rem;font-weight:700;color:var(--text)}
+.sa-stat-sub{font-size:0.72rem;color:var(--text3);margin-top:4px}
+.sa-stat-sub.up{color:var(--success)}
+.sa-stat-sub.warn{color:var(--warning)}
+
+/* Plan badges */
+.plan-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:0.72rem;font-weight:600}
+.plan-trial{background:#fffbeb;color:#d97706}
+.plan-basic{background:#eff6ff;color:#2563eb}
+.plan-pro{background:#f0fdf4;color:#16a34a}
+.plan-enterprise{background:#f5f3ff;color:#7c3aed}
+
+/* School status badges reuse .status-* from style.css, plus: */
+.status-trial{background:#fffbeb;color:#d97706}
+.status-suspended{background:#fef2f2;color:#dc2626}
+.status-pending{background:#f1f5f9;color:#475569}
+
+/* Usage bar (students used / limit) */
+.sa-usage{display:flex;align-items:center;gap:8px;min-width:120px}
+.sa-usage-track{flex:1;height:6px;border-radius:99px;background:var(--surface3);overflow:hidden}
+.sa-usage-fill{height:100%;border-radius:99px}
+.sa-usage-fill.ok{background:var(--success)}
+.sa-usage-fill.warn{background:var(--warning)}
+.sa-usage-fill.full{background:var(--danger)}
+.sa-usage-text{font-size:0.72rem;color:var(--text3);white-space:nowrap}
+
+/* School table row identity */
+.school-info{display:flex;align-items:center;gap:10px}
+.school-avatar{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;background:var(--surface3);color:var(--text2)}
+.school-name{font-weight:500;font-size:0.9rem}
+.school-sub{font-size:0.72rem;color:var(--text3)}
+
+/* Field hint under subdomain input */
+.field-hint{font-size:0.75rem;color:var(--text3);margin-top:2px}
+
+/* Invite note box */
+.sa-invite-note{display:flex;align-items:flex-start;gap:8px;background:#eff6ff;color:#1d4ed8;font-size:0.8rem;padding:10px 12px;border-radius:var(--radius-sm);margin-top:0.75rem;line-height:1.5}
+.sa-invite-note svg{flex-shrink:0;margin-top:2px}
+
+/* Detail drawer */
+.sa-detail-modal{max-width:720px}
+.sa-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.sa-detail-block{background:var(--surface2);border-radius:var(--radius);padding:1rem 1.2rem}
+.sa-detail-block-title{font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px}
+.sa-detail-row{display:flex;justify-content:space-between;font-size:0.85rem;padding:6px 0;border-bottom:1px solid var(--border)}
+.sa-detail-row:last-child{border-bottom:none}
+.sa-detail-row span:first-child{color:var(--text2)}
+.sa-detail-row span:last-child{font-weight:500}
+
+/* Activity log */
+.log-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.log-row:last-child{border-bottom:none}
+.log-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.log-dot.create{background:var(--success)}
+.log-dot.suspend{background:var(--danger)}
+.log-dot.update{background:var(--info)}
+.log-text{font-size:0.85rem;color:var(--text)}
+.log-time{font-size:0.72rem;color:var(--text3);margin-top:2px}
+
+@media(max-width:1100px){.sa-stats-grid{grid-template-columns:repeat(2,1fr)}.sa-detail-grid{grid-template-columns:1fr}}

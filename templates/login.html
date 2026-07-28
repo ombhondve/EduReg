@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — EduReg</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/style.css">
+<link rel="stylesheet" href="static/css/login.css">
+</head>
+<body class="auth-body">
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="auth-shell" id="authShell" data-role="college">
+
+  <!-- Left brand panel (content swaps based on selected role) -->
+  <aside class="auth-brand">
+    <div class="auth-ledger" aria-hidden="true">
+      <div class="auth-ledger-track" id="ledgerTrack"></div>
+    </div>
+
+    <div class="auth-brand-top">
+      <div class="auth-brand-logo">Edu<span>Reg</span></div>
+      <div class="auth-brand-eyebrow" id="brandEyebrow">Registration Portal</div>
+    </div>
+
+    <div class="auth-brand-mid">
+      <div class="auth-brand-headline" id="brandHeadline">Every student record, <em>one intake away.</em></div>
+      <div class="auth-brand-sub" id="brandSub">Sign in to manage registrations, track academic progress, and keep every course roster current.</div>
+    </div>
+
+    <div class="auth-brand-bottom">
+      <div>
+        <div class="auth-stat-num">01</div>
+        <div class="auth-stat-label">Sign In</div>
+      </div>
+      <div>
+        <div class="auth-stat-num">02</div>
+        <div class="auth-stat-label">Verify</div>
+      </div>
+      <div>
+        <div class="auth-stat-num">03</div>
+        <div class="auth-stat-label" id="brandStep3">Manage Records</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right form panel -->
+  <main class="auth-panel">
+    <div class="auth-card">
+      <div class="auth-card-head">
+        <div class="auth-card-title" id="authCardTitle">Welcome back</div>
+        <div class="auth-card-sub" id="authCardSub">Sign in to your registrar account</div>
+      </div>
+
+      <!-- Role switcher replaces the old Login/Signup tabs -->
+      <div class="auth-tabs">
+        <div class="auth-tab-indicator"></div>
+        <button type="button" class="auth-tab-btn active" id="tabCollege" onclick="setAuthRole('college')">College / Staff</button>
+        <button type="button" class="auth-tab-btn" id="tabStudent" onclick="setAuthRole('student')">Student</button>
+      </div>
+
+      <!-- LOGIN FORM (single form, role sent along with credentials) -->
+      <form class="auth-form active" id="loginForm" onsubmit="return handleLogin(event)">
+        <div class="form-group">
+          <label for="liEmail" id="liEmailLabel">Email</label>
+          <input type="email" id="liEmail" placeholder="you@university.edu" autocomplete="username">
+          <div class="field-error" id="liEmailErr"></div>
+        </div>
+        <div class="form-group">
+          <label for="liPassword">Password</label>
+          <div class="auth-pw-wrap">
+            <input type="password" id="liPassword" placeholder="Enter your password" autocomplete="current-password">
+            <button type="button" class="auth-pw-toggle" onclick="togglePassword('liPassword', this)">👁️</button>
+          </div>
+          <div class="field-error" id="liPasswordErr"></div>
+        </div>
+        <div class="auth-options">
+          <label class="auth-remember">
+            <input type="checkbox" id="liRemember">
+            Remember me
+          </label>
+          <a class="auth-link" href="#" onclick="showToast('Ask your admin to reset your password','info');return false;">Forgot password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="loginSubmitBtn">Log In</button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<script src="static/js/api-client.js"></script>
+<script src="static/js/login.js"></script>
+</body>
+</html>

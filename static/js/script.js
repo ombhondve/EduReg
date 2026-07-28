@@ -1841,7 +1841,7 @@ function renderHelp(c){
 function initSidebarUser(){
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (!user) {
-    window.location.href = 'login_signup.html';
+    window.location.href = 'login.html';
     return false;
   }
   const nameEl = document.getElementById('sidebarUserName');
@@ -1862,7 +1862,7 @@ function initialsFromName(name){
 async function handleLogout(){
   try { await AuthApi.logout(); } catch (e) { /* clear locally even if the request fails */ }
   clearCurrentUser();
-  window.location.href = 'login_signup.html';
+  window.location.href = 'login.html';
 }
 
 // ===== HELPERS =====

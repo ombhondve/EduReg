@@ -68,15 +68,14 @@
     <div class="wordmark">EDU<span>REG</span></div>
   </div>
   <script>
-    var TARGET_LOGIN = 'login_signup.html';
+    var TARGET_LOGIN = 'login.html';
     var ROLE_REDIRECTS = {
-      super_admin: 'super_admin.html',
-      admin: 'student_registration_system.html',
-      staff: 'student_registration_system.html',
+      super_admin: 'admin.html',
+      admin: 'collage_portal.html',
+      staff: 'collage_portal.html',
       student: 'student_portal.html',
     };
-    var DEFAULT_REDIRECT = 'student_registration_system.html';
-    var SESSION_FLAG = 'eduregIntroPlayed';
+    var DEFAULT_REDIRECT = 'admin.html';
 
     function goNext(){
       var user = null;
@@ -85,12 +84,8 @@
       window.location.href = ROLE_REDIRECTS[user.role] || DEFAULT_REDIRECT;
     }
 
-    if (sessionStorage.getItem(SESSION_FLAG)) {
-      goNext();
-    } else {
-      sessionStorage.setItem(SESSION_FLAG, '1');
-      setTimeout(goNext, 2750);
-    }
+    // Always play the intro animation, then redirect once it finishes.
+    setTimeout(goNext, 2750);
   </script>
 </body>
 </html>

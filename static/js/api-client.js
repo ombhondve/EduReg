@@ -31,7 +31,7 @@ async function requestApi(endpoint, options = {}, isRetry = false) {
   const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
   if (!response.ok) {
-    if (response.status === 401) { clearCurrentUser(); window.location.href = 'login_signup.html'; }
+    if (response.status === 401) { clearCurrentUser(); window.location.href = 'login.html'; }
     throw new Error(data?.error || 'Request failed');
   }
   return data;
@@ -213,10 +213,10 @@ const NotificationApi = {
 // Point these at whatever routes your backend exposes for auth.
 // Expected login/signup response shape: { id, name, email, role, token }
 const AuthApi = {
-  login(email, password) {
+  login(email, password, role) {
     return requestApi('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(role ? { email, password, role } : { email, password }),
     });
   },
 

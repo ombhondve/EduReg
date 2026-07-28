@@ -873,7 +873,7 @@ async function resendInvite(schoolId) {
 
 function handleLogoutSA() {
   clearCurrentUser();
-  window.location.href = 'login_signup.html';
+  window.location.href = 'login.html';
 }
 
 function showToastSA(msg, type = 'info') {

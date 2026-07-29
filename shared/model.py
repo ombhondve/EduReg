@@ -8,15 +8,15 @@ class controller:
     def __init__(self):
         try:
             self.conn = connect(
-                host=os.getenv("host"), 
-                user=os.getenv("user"), 
-                password=os.getenv("password"), 
-                database=os.getenv("database")
-                )
+                        host=os.getenv("host"), 
+                        user=os.getenv("user"), 
+                        password=os.getenv("password"), 
+                        database=os.getenv("database")
+                        )
             self.cur = self.conn.cursor(cursors.DictCursor)
         except Exception as e:
-            raise
-    
+                raise
+        
     def Add_new_user(self, data):
         try:
             ins_query = """

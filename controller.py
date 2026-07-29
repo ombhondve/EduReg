@@ -11,6 +11,7 @@ app = Flask(__name__)
 obj=controller()
 SECRET_KEY = os.getenv("JWT_SECRET")
 app.register_blueprint(superadmin_bp)
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template("index.html")
@@ -18,8 +19,6 @@ def index():
 @app.route('/login.html', methods=['GET'])
 def dashboard():
     return render_template("login.html")
-
-
 
 @app.route('/auth/login', methods=['POST'])
 def login():

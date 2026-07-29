@@ -13,20 +13,7 @@ const DEMO_DATA = {
     totalSchools: 14, activeSchools: 11, trialSchools: 2, suspendedSchools: 1,
     totalStudents: 8420, totalStaff: 312, mrr: 184000, newThisMonth: 3,
   },
-  schools: [
-    { id: 1, name: 'Sunrise Institute of Technology', subdomain: 'sunrise', city: 'Nashik', country: 'India',
-      plan: 'pro', status: 'Active', students: 640, maxStudents: 1000, staff: 22, maxStaff: 30,
-      adminName: 'Priya Sharma', adminEmail: 'priya@sunrise.edu', createdAt: '2026-02-14' },
-    { id: 2, name: 'Greenfield College', subdomain: 'greenfield', city: 'Pune', country: 'India',
-      plan: 'trial', status: 'Trial', students: 85, maxStudents: 200, staff: 4, maxStaff: 10,
-      adminName: 'Arjun Mehta', adminEmail: 'arjun@greenfield.edu', createdAt: '2026-07-15' },
-    { id: 3, name: 'Northlake University', subdomain: 'northlake', city: 'Bengaluru', country: 'India',
-      plan: 'enterprise', status: 'Active', students: 3200, maxStudents: 5000, staff: 95, maxStaff: 150,
-      adminName: 'Kavita Rao', adminEmail: 'kavita@northlake.edu', createdAt: '2025-11-02' },
-    { id: 4, name: 'Riverside Coaching Center', subdomain: 'riverside', city: 'Mumbai', country: 'India',
-      plan: 'basic', status: 'Suspended', students: 120, maxStudents: 150, staff: 6, maxStaff: 8,
-      adminName: 'Sanjay Patel', adminEmail: 'sanjay@riverside.edu', createdAt: '2026-01-20' },
-  ],
+
   activityLog: [
     { type: 'create', text: 'Greenfield College onboarded on trial plan', time: '2 hours ago' },
     { type: 'suspend', text: 'Riverside Coaching Center suspended — payment overdue', time: '1 day ago' },

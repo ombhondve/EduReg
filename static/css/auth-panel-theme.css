@@ -249,3 +249,145 @@ body {
   min-height: 16px;
   color: var(--success);
 }
+
+/* ==========================================
+   Password Set Success Screen
+   NOTE: display is intentionally left OUT of this
+   base rule. The [hidden] attribute controls
+   visibility (browser-native, display:none).
+   JS toggles the `hidden` attribute and sets
+   display:flex only when actually showing it,
+   so this class no longer permanently overrides
+   that with `display:none`.
+========================================== */
+
+.success-container {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: successFadeIn .7s ease;
+}
+
+.success-icon-wrapper {
+  margin-bottom: 28px;
+}
+
+.success-icon {
+  position: relative; /* required so ::before positions relative to THIS box, not an ancestor */
+  width: 120px;
+  height: 120px;
+}
+
+.success-checkmark {
+  width: 120px;
+  height: 120px;
+  overflow: visible;
+}
+
+.success-circle {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 2.5;
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: drawCircle .7s ease forwards;
+}
+
+.success-check {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: drawCheck .35s ease forwards;
+  animation-delay: .65s;
+}
+
+.success-icon::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--success);
+  z-index: -1;
+  transform: scale(0);
+  animation: popCircle .45s ease forwards;
+}
+
+.success-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 34px;
+  color: var(--ink);
+}
+
+.success-description {
+  margin: 16px 0 32px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 380px;
+}
+
+.success-btn {
+  background: var(--success);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 36px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: .25s;
+}
+
+.success-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(34,160,107,.25);
+}
+
+.success-btn:active {
+  transform: translateY(0);
+}
+
+@keyframes successFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popCircle {
+  0% {
+    transform: scale(0);
+  }
+  80% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes drawCircle {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawCheck {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

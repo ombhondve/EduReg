@@ -17,7 +17,7 @@ class controller:
                 database=os.getenv("database")
             )
             self.cur = self.conn.cursor(cursors.DictCursor)
-            print("connected to defalut DB")
+
 
         except Exception as e:
             self.conn = connect(
@@ -27,7 +27,7 @@ class controller:
                 database=database_name
             )
             self.cur = self.conn.cursor(cursors.DictCursor)
-            print("connected to dynamic DB")
+
 
     def Add_new_user(self, data):
         try:
@@ -47,13 +47,37 @@ class controller:
             return False
     def fetch_user_by_email(self, email):
         try:
-            sel_query = "SELECT admin_email, admin_title FROM organization_admins WHERE admin_email = %s"
+            sel_query = "SELECT * FROM organization_admins WHERE admin_email = %s"
             self.cur.execute(sel_query, (email,))
             result = self.cur.fetchone()
             return result
         except Exception as e:
             print(e)
             return None
+    def fetch_user_by_token(self, token):
+            try:
+                sel_query = "SELECT * FROM organization_admins WHERE reset_token = %s"
+                self.cur.execute(sel_query, (token,))
+                result = self.cur.fetchone()
+                return result
+            except Exception as e:
+                print(e)
+                return None
+    def set_password(self, hash_pass, id):
+        try:
+            upd_query = """
+                UPDATE organization_admins
+                SET hashed_password = %s, reset_token = NULL, token_expiry = NULL
+                WHERE admin_id = %s
+            """
+            self.cur.execute(upd_query, (hash_pass, id))
+            self.conn.commit()
+            return True
+
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
+            return False
     def fetch_dashboard_stats(self):
         try:
             # Overall counts + average GPA in one query

@@ -8,6 +8,9 @@
   const submitBtn = document.getElementById('submitBtn');
   const formStatus = document.getElementById('formStatus');
   const form = document.getElementById('setPasswordForm');
+  const formContainer = document.getElementById('formContainer');
+  const successContainer = document.getElementById('successContainer');
+  const loginBtn = document.getElementById('loginBtn');
 
   const rules = {
     length: (pw) => pw.length >= 8,
@@ -28,11 +31,13 @@
   function evaluateRules(pw) {
     const results = {};
     let passedCount = 0;
+
     for (const key in rules) {
       const passed = rules[key](pw);
       results[key] = passed;
       if (passed) passedCount++;
     }
+
     return { results, passedCount };
   }
 
@@ -41,31 +46,29 @@
       strengthFill.style.width = '0%';
       strengthFill.style.background = '#e6e8ec';
       strengthLabel.textContent = 'Password strength';
-      return 0;
+      return;
     }
 
     const { passedCount } = evaluateRules(pw);
-    const level = strengthLevels.find(l => l.max === passedCount) || strengthLevels[strengthLevels.length - 1];
+    const level =
+      strengthLevels.find((l) => l.max === passedCount) ||
+      strengthLevels[strengthLevels.length - 1];
 
     strengthFill.style.width = level.pct + '%';
     strengthFill.style.background = level.color;
     strengthLabel.textContent = level.label;
     strengthLabel.style.color = level.color;
-
-    return passedCount;
   }
 
   function updateRequirementList(pw) {
     const { results } = evaluateRules(pw);
     const items = requirementList.querySelectorAll('li');
-    items.forEach(item => {
-      const rule = item.getAttribute('data-rule');
-      if (results[rule]) {
-        item.classList.add('met');
-      } else {
-        item.classList.remove('met');
-      }
+
+    items.forEach((item) => {
+      const rule = item.dataset.rule;
+      item.classList.toggle('met', !!results[rule]);
     });
+
     return results;
   }
 
@@ -87,11 +90,11 @@
       matchHint.textContent = 'Passwords match';
       matchHint.className = 'match-hint ok';
       return true;
-    } else {
-      matchHint.textContent = 'Passwords do not match';
-      matchHint.className = 'match-hint bad';
-      return false;
     }
+
+    matchHint.textContent = 'Passwords do not match';
+    matchHint.className = 'match-hint bad';
+    return false;
   }
 
   function refreshSubmitState() {
@@ -103,34 +106,93 @@
   }
 
   function attachVisibilityToggles() {
-    const toggles = document.querySelectorAll('.visibility-toggle');
-    toggles.forEach(btn => {
+    document.querySelectorAll('.visibility-toggle').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const targetId = btn.getAttribute('data-target');
-        const input = document.getElementById(targetId);
-        const isHidden = input.type === 'password';
-        input.type = isHidden ? 'text' : 'password';
-        btn.classList.toggle('active', isHidden);
+        const input = document.getElementById(btn.dataset.target);
+        input.type = input.type === 'password' ? 'text' : 'password';
+        btn.classList.toggle('active');
       });
     });
+  }
+
+  function resetFormVisuals() {
+    form.reset();
+    strengthFill.style.width = '0%';
+    strengthFill.style.background = '#e6e8ec';
+    strengthLabel.textContent = 'Password strength';
+    matchHint.textContent = '';
+    matchHint.className = 'match-hint';
+    requirementList.querySelectorAll('li').forEach((item) => item.classList.remove('met'));
+  }
+
+  // Swaps the form out for the animated success screen. The CSS class
+  // .success-container no longer hardcodes display:none, so setting
+  // display:flex here + clearing the hidden attribute is what actually
+  // reveals it (previously the CSS override made this impossible).
+  function showSuccessScreen() {
+    resetFormVisuals();
+    formStatus.textContent = '';
+
+    formContainer.hidden = true;
+    successContainer.hidden = false;
+    successContainer.style.display = 'flex';
   }
 
   newPasswordInput.addEventListener('input', refreshSubmitState);
   confirmPasswordInput.addEventListener('input', refreshSubmitState);
   attachVisibilityToggles();
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (submitBtn.disabled) return;
 
-    formStatus.textContent = 'Password set successfully.';
-    formStatus.style.color = '#22a06b';
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (!token) {
+      formStatus.style.color = 'red';
+      formStatus.textContent = 'This link is missing or invalid. Please use the link from your email.';
+      return;
+    }
+
     submitBtn.disabled = true;
-    form.reset();
-    strengthFill.style.width = '0%';
-    strengthFill.style.background = '#e6e8ec';
-    strengthLabel.textContent = 'Password strength';
-    matchHint.textContent = '';
-    requirementList.querySelectorAll('li').forEach(item => item.classList.remove('met'));
+    formStatus.style.color = '#555';
+    formStatus.textContent = 'Please wait...';
+
+    const password = newPasswordInput.value;
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/auth/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password })
+      });
+
+      let result = {};
+      try {
+        result = await response.json();
+      } catch (_) {
+        // backend returned no/invalid JSON body
+      }
+
+      if (response.ok && result.success) {
+        showSuccessScreen();
+      } else {
+        formStatus.style.color = 'red';
+        formStatus.textContent = result.message || 'Failed to set password';
+        submitBtn.disabled = false;
+      }
+    } catch (error) {
+      console.error(error);
+      formStatus.style.color = 'red';
+      formStatus.textContent = 'Unable to connect to server.';
+      submitBtn.disabled = false;
+    }
   });
+
+  if (loginBtn) {
+    loginBtn.addEventListener('click', () => {
+      window.location.href = '/login.html'; // adjust to your real login page path
+    });
+  }
 })();

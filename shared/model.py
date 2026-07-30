@@ -6,17 +6,29 @@ import os
 load_dotenv("env.env")
 class controller:
     def __init__(self):
+        self.DB_connections()
+
+    def DB_connections(self, database_name=None):
         try:
             self.conn = connect(
-                        host=os.getenv("host"), 
-                        user=os.getenv("user"), 
-                        password=os.getenv("password"), 
-                        database=os.getenv("database")
-                        )
+                host=os.getenv("host"),
+                user=os.getenv("user"),
+                password=os.getenv("password"),
+                database=os.getenv("database")
+            )
             self.cur = self.conn.cursor(cursors.DictCursor)
+            print("connected to defalut DB")
+
         except Exception as e:
-                raise
-        
+            self.conn = connect(
+                host=os.getenv("host"),
+                user=os.getenv("user"),
+                password=os.getenv("password"),
+                database=database_name
+            )
+            self.cur = self.conn.cursor(cursors.DictCursor)
+            print("connected to dynamic DB")
+
     def Add_new_user(self, data):
         try:
             ins_query = """
@@ -35,7 +47,7 @@ class controller:
             return False
     def fetch_user_by_email(self, email):
         try:
-            sel_query = "SELECT * FROM users WHERE email = %s"
+            sel_query = "SELECT admin_email, admin_title FROM organization_admins WHERE admin_email = %s"
             self.cur.execute(sel_query, (email,))
             result = self.cur.fetchone()
             return result

@@ -86,14 +86,14 @@ class superadmin_models(controller):
             data['organization_id'] = organization_id
 
             ins_query_admin = """
-                INSERT INTO organization_admins(admin_name, organization_id, admin_title, admin_email, admin_phone)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO organization_admins(admin_name, organization_id, admin_title, admin_email, admin_phone, reset_token, token_expiry)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
             self.cur.execute(ins_query_admin, (
                 data.get('adminName'), organization_id, data.get('adminTitle'),
-                data.get('adminEmail'), data.get('adminPhone'),
+                data.get('adminEmail'), data.get('adminPhone'),data.get('reset_token'), data.get('token_expiry'),
             ))
-
+              
             ins_query_plan = """
                 INSERT INTO organization_plans(organization_id, plan, billing_cycle, max_students, max_staff, storage_gb, status, notes)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -101,30 +101,29 @@ class superadmin_models(controller):
             self.cur.execute(ins_query_plan, (
                 organization_id, data.get('plan', 'trial'), data.get('billingCycle', 'Monthly'),
                 data.get('maxStudents', 0), data.get('maxStaff', 0), data.get('storageGb', 0),
-                data.get('status', 'Trial'), data.get('notes'),
+                data.get('status', 'Trial'), data.get('notes'), 
             ))
 
             self.conn.commit()
             self.create_resources(organization_id)
-            self.log_activity(organization_id, 'create', f"{data.get('name')} onboarded on {data.get('plan', 'trial')} plan")
-            return jsonify({"message": "School organization added successfully", "id": organization_id}), 201
+            return True
+            #return jsonify({"message": "School organization added successfully", "id": organization_id}), 201
 
         except Exception as e:
             print(e)
             self.conn.rollback()
             return jsonify({"error": "Failed to add school organization"}), 500
 
-
-
+    
     def create_resources(self, organization_id):
-        # Identifiers can't be parameterized in SQL — build one ourselves and
-        # validate it's alphanumeric/underscore only before using it in DDL.
-        DB_name = f"edureg_org_{organization_id}"
-        if not _SAFE_IDENT.match(DB_name):
-            raise ValueError(f"Unsafe database identifier: {DB_name}")
-        self.cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_name}`")
-        self.conn.commit()
-        return True
+           # Identifiers can't be parameterized in SQL — build one ourselves and
+           # validate it's alphanumeric/underscore only before using it in DDL.
+           DB_name = f"edureg_org_{organization_id}"
+           if not _SAFE_IDENT.match(DB_name):
+               raise ValueError(f"Unsafe database identifier: {DB_name}")
+           self.cur.execute(f"CREATE DATABASE IF NOT EXISTS `{DB_name}`")
+           self.conn.commit()
+           return True
 
     # ---------------------------------------------------------------
     # Dashboard

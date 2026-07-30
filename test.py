@@ -1,4 +1,6 @@
-id=1
-DB_name="edureg_org_"+ str(id)
-cre_DB="CREATE DATABASE " + DB_name
-print(cre_DB)
+import secrets
+from datetime import datetime, timedelta
+token=secrets.token_urlsafe(64)
+expiry = (datetime.now() + timedelta(minutes=30))
+print(token)
+print(expiry)

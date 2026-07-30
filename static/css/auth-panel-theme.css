@@ -1,0 +1,251 @@
+:root {
+  --ink: #000053;
+  --muted: #94a3b8;
+  --border: #e6e8ec;
+  --border-soft: #edeff2;
+  --accent: #e0395a;
+  --accent-dark: #c92b4b;
+  --success: #22a06b;
+  --warning: #e2a13a;
+  --danger: #e0395a;
+  --bg: #ffffff;
+  --panel-bg: #f7f8fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+}
+
+.brand-logo {
+  display: inline-block;
+  background: var(--ink);
+  border-radius: 8px;
+  padding: 8px 16px;
+  margin-bottom: 24px;
+}
+
+.brand-logo-text {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
+.brand-logo-accent {
+  color: var(--accent);
+}
+
+.auth-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px 0;
+}
+
+.auth-subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 0 0 32px 0;
+}
+
+.field-block {
+  margin-bottom: 26px;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #4b5566;
+  margin-bottom: 10px;
+}
+
+.input-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-shell input {
+  width: 100%;
+  padding: 14px 46px 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input-shell input::placeholder {
+  color: #a8afbb;
+}
+
+.input-shell input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(224, 57, 90, 0.12);
+}
+
+.visibility-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #b7bcc6;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.visibility-toggle:hover {
+  color: var(--accent);
+}
+
+.visibility-toggle.active {
+  color: var(--accent);
+}
+
+/* Strength meter */
+.strength-meter {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.strength-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border-soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.strength-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--border);
+  transition: width 0.25s ease, background 0.25s ease;
+}
+
+.strength-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: right;
+}
+
+/* Requirement checklist */
+.requirement-list {
+  list-style: none;
+  margin: 14px 0 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.requirement-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+
+.requirement-list li.met {
+  color: var(--success);
+}
+
+.req-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+
+.requirement-list li.met .req-dot {
+  background: var(--success);
+}
+
+.match-hint {
+  font-size: 12.5px;
+  margin: 10px 0 0 0;
+  min-height: 16px;
+  color: var(--muted);
+}
+
+.match-hint.ok {
+  color: var(--success);
+}
+
+.match-hint.bad {
+  color: var(--danger);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.05s ease;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.submit-btn:disabled {
+  background: #f0b6c2;
+  cursor: not-allowed;
+}
+
+.form-status {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 0 0;
+  min-height: 16px;
+  color: var(--success);
+}

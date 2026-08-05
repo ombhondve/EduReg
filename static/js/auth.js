@@ -1,7 +1,13 @@
-// ===== AUTH PAGE LOGIC =====
-// Talks to /auth/login and /auth/signup (see AuthApi in api-client.js).
-// On success, stores the returned user in localStorage via setCurrentUser()
-// and redirects based on user.role.
+// ===== ADMIN LOGIN / SIGNUP PAGE LOGIC =====
+// Fully self-contained: does NOT load or depend on api-client.js / login.js.
+// Talks only to POST /auth/admin_login and POST /auth/signup. Nothing here
+// is shared with the student/college login page (login.html + login.js).
+
+// If your Flask app serves this page itself (which controller.py does),
+// leave this as '' so requests go to whatever host/port the page was
+// loaded from. Only set window.ADMIN_API_BASE if the API truly lives on
+// a different host, e.g. window.ADMIN_API_BASE = 'https://api.example.com'.
+const API_BASE = window.ADMIN_API_BASE || '';
 
 const ROLE_REDIRECTS = {
   super_admin: 'admin.html',
@@ -10,13 +16,25 @@ const ROLE_REDIRECTS = {
   student: 'student_portal.html',
 };
 const DEFAULT_REDIRECT = 'admin.html';
+const AUTH_STORAGE_KEY = 'eduregUser';
 
 function redirectForRole(user) {
   return ROLE_REDIRECTS[user?.role] || DEFAULT_REDIRECT;
 }
 
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || 'null');
+  } catch (e) {
+    return null;
+  }
+}
+function setCurrentUser(user) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+}
+
 // ---------- Tab switching ----------
-function setAuthMode(mode){
+function setAuthMode(mode) {
   const shell = document.getElementById('authShell');
   shell.dataset.mode = mode;
 
@@ -41,7 +59,7 @@ function setAuthMode(mode){
 }
 
 // ---------- Password visibility ----------
-function togglePassword(fieldId, btn){
+function togglePassword(fieldId, btn) {
   const input = document.getElementById(fieldId);
   const show = input.type === 'password';
   input.type = show ? 'text' : 'password';
@@ -49,16 +67,16 @@ function togglePassword(fieldId, btn){
 }
 
 // ---------- Validation helpers ----------
-function setFieldError(id, message){
+function setFieldError(id, message) {
   const el = document.getElementById(id);
   if (el) el.textContent = message || '';
 }
-function isValidEmail(email){
+function isValidEmail(email) {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
 }
 
 // ---------- Login ----------
-async function handleLogin(event){
+async function handleLogin(event) {
   event.preventDefault();
   setFieldError('liEmailErr', '');
   setFieldError('liPasswordErr', '');
@@ -77,16 +95,29 @@ async function handleLogin(event){
   btn.textContent = 'Signing in…';
 
   try {
-    const res = await AuthApi.login(email, password);
-    // Backend returns { message, user: {...}, accessToken, refreshToken } — merge
-    // the token fields onto the user object so getCurrentUser() carries everything.
-    // user.role must be included by the backend for the redirect below to work.
-    const user = { ...(res.user || res), accessToken: res.accessToken, refreshToken: res.refreshToken };
+    const response = await fetch(`${API_BASE}/auth/admin_login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password ,role: "admin"}),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : {};
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Invalid email or password');
+    }
+
+    const user = { ...(data.user || data), accessToken: data.accessToken, refreshToken: data.refreshToken };
     setCurrentUser(user);
     showToast('Signed in successfully', 'success');
     setTimeout(() => { window.location.href = redirectForRole(user); }, 400);
   } catch (err) {
-    showToast(err.message || 'Invalid email or password', 'error');
+    console.error('Admin login request failed:', err);
+    const message = err instanceof TypeError
+      ? 'Could not reach the server. Check that the backend is running and reachable.'
+      : (err.message || 'Invalid email or password');
+    showToast(message, 'error');
     btn.disabled = false;
     btn.textContent = originalLabel;
   }
@@ -94,7 +125,7 @@ async function handleLogin(event){
 }
 
 // ---------- Signup ----------
-async function handleSignup(event){
+async function handleSignup(event) {
   event.preventDefault();
   setFieldError('suNameErr', '');
   setFieldError('suEmailErr', '');
@@ -118,10 +149,21 @@ async function handleSignup(event){
   btn.textContent = 'Creating account…';
 
   try {
-    const res = await AuthApi.signup({ name, email, password });
-    const user = res && res.user ? res.user : res;
+    const response = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await response.json() : {};
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Could not create account');
+    }
+
+    const user = data && data.user ? data.user : data;
     if (user && (user.token || user.id)) {
-      // Backend logged the user in immediately
       setCurrentUser(user);
       showToast('Account created', 'success');
       setTimeout(() => { window.location.href = redirectForRole(user); }, 400);
@@ -131,7 +173,11 @@ async function handleSignup(event){
       document.getElementById('liEmail').value = email;
     }
   } catch (err) {
-    showToast(err.message || 'Could not create account', 'error');
+    console.error('Admin signup request failed:', err);
+    const message = err instanceof TypeError
+      ? 'Could not reach the server. Check that the backend is running and reachable.'
+      : (err.message || 'Could not create account');
+    showToast(message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = originalLabel;
@@ -139,8 +185,8 @@ async function handleSignup(event){
   return false;
 }
 
-// ---------- Toast (standalone copy — this page doesn't load script.js) ----------
-function showToast(msg, type = 'info'){
+// ---------- Toast ----------
+function showToast(msg, type = 'info') {
   const cont = document.getElementById('toastContainer');
   if (!cont) return;
   const t = document.createElement('div');
@@ -153,7 +199,7 @@ function showToast(msg, type = 'info'){
 }
 
 // ---------- Ambient ledger (signature visual — decorative only) ----------
-function buildLedger(){
+function buildLedger() {
   const track = document.getElementById('ledgerTrack');
   if (!track) return;
   const dotColors = ['#22c55e', '#f59e0b', '#3b82f6', '#e94560'];
@@ -167,15 +213,13 @@ function buildLedger(){
       <span class="auth-ledger-bar" style="width:${w2}%;opacity:.5"></span>
     </div>`;
   }).join('');
-  // Duplicate the row set so the CSS translateY(-50%) loop is seamless
   track.innerHTML = rows + rows;
 }
 
 // ---------- Init ----------
-(function initAuthPage(){
+(function initAuthPage() {
   buildLedger();
-  // If already signed in, skip straight to the right portal
-  const existing = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  const existing = getCurrentUser();
   if (existing) {
     window.location.href = redirectForRole(existing);
   }

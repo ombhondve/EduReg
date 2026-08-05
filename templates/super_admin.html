@@ -24,6 +24,11 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         <span>Dashboard</span>
       </div>
+      <div class="nav-section">Team</div>
+      <div class="nav-item" data-page="employees" onclick="navigateSA('employees')">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span>Employees</span>
+      </div>
       <div class="nav-section">Tenants</div>
       <div class="nav-item" data-page="schools" onclick="navigateSA('schools')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>
@@ -102,9 +107,13 @@
         <small id="saPageSubtitle">All schools on EduReg</small>
       </div>
       <div class="topbar-actions" id="saTopbarActions">
-        <button class="btn btn-primary" onclick="openAddSchoolModal()">
+        <button class="btn btn-primary" id="addSchoolBtn" onclick="openAddSchoolModal()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add School
+        </button>
+        <button class="btn btn-primary" id="addEmployeeBtn" onclick="openAddEmployeeModal()" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Employee
         </button>
       </div>
     </header>
@@ -255,6 +264,104 @@
   </div>
 </div>
 
+<!-- Add Employee Modal -->
+<div class="modal-overlay" id="employeeModal" onclick="if(event.target===this)closeEmployeeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Invite an employee</div>
+      <button class="btn-icon" onclick="closeEmployeeModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section">
+        <div class="form-section-title">Employee details</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Full Name *</label>
+            <input type="text" id="empName" placeholder="e.g. Priya Sharma">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="empEmail" placeholder="priya@yourcompany.com">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="empPhone" placeholder="+91 98765 43210">
+          </div>
+          <div class="form-group">
+            <label>Designation</label>
+            <input type="text" id="empDesignation" placeholder="e.g. Support Engineer">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Department & access</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Department</label>
+            <select class="form-select" id="empDepartment">
+              <option>Engineering</option><option>Support</option>
+              <option>Sales</option><option>Operations</option>
+              <option>Finance</option><option>HR</option>
+            </select>
+          </div>
+          <div class="form-group full">
+            <label>Access Role(s) * <span style="font-weight:400;color:var(--text3)">— checking a role auto-ticks its usual pages below</span></label>
+            <div id="empRoleGroup" class="emp-role-list">
+              <label class="emp-role-item"><input type="checkbox" name="empRole" value="super_admin" onchange="onEmpRoleToggle(this)"> Super Admin — full platform access</label>
+              <label class="emp-role-item"><input type="checkbox" name="empRole" value="support" checked onchange="onEmpRoleToggle(this)"> Support — schools, tickets, students</label>
+              <label class="emp-role-item"><input type="checkbox" name="empRole" value="billing" onchange="onEmpRoleToggle(this)"> Billing — plans, revenue, invoices</label>
+              <label class="emp-role-item"><input type="checkbox" name="empRole" value="content" onchange="onEmpRoleToggle(this)"> Content — notifications, feature flags</label>
+              <label class="emp-role-item"><input type="checkbox" name="empRole" value="read_only" onchange="onEmpRoleToggle(this)"> Read Only — view access only</label>
+            </div>
+          </div>
+          <div class="form-group full">
+            <label>Sidebar Pages <span style="font-weight:400;color:var(--text3)">— fine-tune exactly what they can see; untick anything you don't want even if their role normally includes it</span></label>
+            <div id="empPageGroup" class="emp-page-grid"></div>
+          </div>
+          <div class="form-group">
+            <label>Employment Type</label>
+            <select class="form-select" id="empType">
+              <option>Full-time</option><option>Part-time</option>
+              <option>Contractor</option><option>Intern</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-select" id="empStatus">
+              <option>Invited</option><option>Active</option><option>Suspended</option>
+            </select>
+          </div>
+        </div>
+        <div class="sa-invite-note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          An invite link with a one-time setup token will be sent to this email. They set their own password via that link — no password is entered here, and no one can self-register without an invite.
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">Internal notes</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <textarea id="empNotes" placeholder="Reporting manager, start date, special access notes..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEmployeeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Add Employee & Send Invite
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- School Detail Drawer -->
 <div class="modal-overlay" id="schoolDetailModal" onclick="if(event.target===this)closeOverlaySA('schoolDetailModal')">
   <div class="modal sa-detail-modal">
@@ -295,6 +402,7 @@
 </div>
 
 <script src="static/js/api-client.js"></script>
+<script src="static/js/superadmin-permissions.js"></script>
 <script src="static/js/superadmin-api-client.js"></script>
 <script src="static/js/superadmin.js"></script>
 </body>

@@ -93,6 +93,61 @@ const SuperAdminApi = {
     return requestApi(`/superadmin/schools/${schoolId}/impersonate`, { method: 'POST' });
   },
 
+  // ---- Employees (internal company/platform team — invite-only) ----
+  // GET    /superadmin/employees?search=&department=&role=&status=
+  // GET    /superadmin/employees/<id>
+  // POST   /superadmin/employees                 { name, email, ... }  -> sends invite link (?token=&role=)
+  // PUT    /superadmin/employees/<id>
+  // POST   /superadmin/employees/<id>/suspend
+  // POST   /superadmin/employees/<id>/activate
+  // DELETE /superadmin/employees/<id>
+  // POST   /superadmin/employees/<id>/resend-invite
+  getEmployees(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.department) params.set('department', filters.department);
+    if (filters.role) params.set('role', filters.role);
+    if (filters.status) params.set('status', filters.status);
+    const query = params.toString();
+    return requestApi(`/superadmin/employees${query ? `?${query}` : ''}`);
+  },
+
+  getEmployee(employeeId) {
+    return requestApi(`/superadmin/employees/${employeeId}`);
+  },
+
+  inviteEmployee(employeeData) {
+    // Backend creates a pending employee record + invite token, then emails
+    // set-password.html?token=<token>&role=<role> to employeeData.email.
+    return requestApi('/superadmin/employees', {
+      method: 'POST',
+      body: JSON.stringify(employeeData),
+    });
+  },
+
+  updateEmployee(employeeId, employeeData) {
+    return requestApi(`/superadmin/employees/${employeeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(employeeData),
+    });
+  },
+
+  suspendEmployee(employeeId) {
+    return requestApi(`/superadmin/employees/${employeeId}/suspend`, { method: 'POST' });
+  },
+
+  activateEmployee(employeeId) {
+    return requestApi(`/superadmin/employees/${employeeId}/activate`, { method: 'POST' });
+  },
+
+  deleteEmployee(employeeId) {
+    return requestApi(`/superadmin/employees/${employeeId}`, { method: 'DELETE' });
+  },
+
+  resendEmployeeInvite(employeeId) {
+    return requestApi(`/superadmin/employees/${employeeId}/resend-invite`, { method: 'POST' });
+  },
+
   // ---- Onboarding pipeline ----
   // GET /superadmin/onboarding — schools grouped by pipeline stage
   getOnboardingPipeline() {

@@ -4,3 +4,4 @@ python-dotenv==1.0.1
 bcrypt==4.2.0
 PyJWT==2.9.0
 gunicorn==23.0.0
+DBUtils==3.1.0

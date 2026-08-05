@@ -7,6 +7,7 @@
 let currentPage = 'overview';
 let pendingConfirmAction = null;
 let pendingSchoolId = null;
+let pendingConfirmType = 'school'; // 'school' | 'employee'
 
 const DEMO_DATA = {
   stats: {
@@ -27,6 +28,14 @@ const DEMO_DATA = {
     { id: 2, name: 'Sneha Kulkarni', rollNo: '21ME0089', schoolId: 3, schoolName: 'Northlake University', program: 'B.Tech Mech, Sem 3', status: 'Active', lastActive: 'Yesterday', enrolled: 'Jan 2024', email: 'sneha.k@northlake.edu' },
     { id: 3, name: 'Rohan Mehta', rollNo: '24DP0212', schoolId: 2, schoolName: 'Greenfield College', program: 'Diploma EE, Sem 1', status: 'Flagged', lastActive: '5 days ago', enrolled: 'Jun 2026', email: 'rohan.m@greenfield.edu' },
     { id: 4, name: 'Tanvi Joshi', rollNo: '22CE0034', schoolId: 4, schoolName: 'Riverside Coaching Center', program: 'Civil, Sem 7', status: 'Inactive', lastActive: '32 days ago', enrolled: 'Jul 2022', email: 'tanvi.j@riverside.edu' },
+  ],
+
+  // ---- Employees (internal company/platform team) ----
+  employees: [
+    { id: 1, name: 'Priya Sharma', email: 'priya@yourcompany.com', phone: '+91 98765 43210', employeeId: 'EMP-0101', department: 'Support', designation: 'Support Lead', roles: ['support'], type: 'Full-time', status: 'Active', invitedAgo: '5 months ago', joinedAt: '5 months ago' },
+    { id: 2, name: 'Karan Mehta', email: 'karan@yourcompany.com', phone: '+91 91234 56789', employeeId: 'EMP-0104', department: 'Engineering', designation: 'Platform Engineer', roles: ['super_admin'], type: 'Full-time', status: 'Active', invitedAgo: '8 months ago', joinedAt: '8 months ago' },
+    { id: 3, name: 'Ananya Rao', email: 'ananya@yourcompany.com', phone: '+91 99887 66554', employeeId: 'EMP-0117', department: 'Finance', designation: 'Billing & Content Associate', roles: ['billing', 'content'], type: 'Full-time', status: 'Invited', invitedAgo: '2 days ago', joinedAt: null },
+    { id: 4, name: 'Devansh Iyer', email: 'devansh@yourcompany.com', phone: '', employeeId: 'EMP-0122', department: 'Sales', designation: 'Onboarding Specialist', roles: ['read_only'], type: 'Contractor', status: 'Suspended', invitedAgo: '3 months ago', joinedAt: '3 months ago' },
   ],
 
   // ---- Onboarding pipeline (stage extends school status) ----
@@ -94,7 +103,16 @@ async function apiOrDemo(apiCall, demoValue) {
     return demoValue;
   }
 }
-
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 // ===== Performance helpers =====
 // 1) Short-lived response cache so switching between nav pages (or re-opening
 //    the same page) doesn't refire the same network request every time.
@@ -144,10 +162,16 @@ function paginationHtml(page, totalPages, total, onGoto) {
 }
 
 function navigateSA(page) {
+  const pages = getCurrentEmployeePages();
+  if (!pages.includes(page)) {
+    showToastSA("You don't have access to that page", 'error');
+    page = pages.includes(currentPage) ? currentPage : DEFAULT_LANDING_PAGE;
+  }
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   const titles = {
     overview: ['Platform overview', 'All schools on EduReg'],
+    employees: ['Employees', 'Your internal team — invite, manage access, and offboard'],
     schools: ['Schools', 'Manage tenant institutions'],
     students: ['Students', "Cross-school directory, synced from each college's staff dashboard"],
     onboarding: ['Onboarding pipeline', 'Schools moving from invite to fully active'],
@@ -164,7 +188,12 @@ function navigateSA(page) {
   };
   document.getElementById('saPageTitle').textContent = titles[page][0];
   document.getElementById('saPageSubtitle').textContent = titles[page][1];
-  document.getElementById('saTopbarActions').style.display = (page === 'schools' || page === 'overview') ? 'flex' : 'none';
+  const role = getCurrentEmployeeRoles();
+  const canAddSchool = canDo(role, 'school.create') && (page === 'schools' || page === 'overview');
+  const canAddEmployee = canDo(role, 'employee.create') && page === 'employees';
+  document.getElementById('saTopbarActions').style.display = (canAddSchool || canAddEmployee) ? 'flex' : 'none';
+  document.getElementById('addSchoolBtn').style.display = canAddSchool ? 'inline-flex' : 'none';
+  document.getElementById('addEmployeeBtn').style.display = canAddEmployee ? 'inline-flex' : 'none';
   renderPage(page);
 }
 
@@ -172,6 +201,7 @@ async function renderPage(page) {
   const el = document.getElementById('saMainContent');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
   if (page === 'overview') return renderOverview();
+  if (page === 'employees') return renderEmployees();
   if (page === 'schools') return renderSchools();
   if (page === 'students') return renderStudents();
   if (page === 'onboarding') return renderOnboarding();
@@ -311,9 +341,9 @@ function schoolRow(s) {
       <button class="btn-icon" title="View" onclick="viewSchool(${s.id})">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
-      ${s.status === 'Suspended'
+      ${canDo(getCurrentEmployeeRoles(), 'school.suspend') ? (s.status === 'Suspended'
         ? `<button class="btn-icon" title="Activate" onclick="askConfirmSA(${s.id},'activate')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>`
-        : `<button class="btn-icon" title="Suspend" onclick="askConfirmSA(${s.id},'suspend')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`}
+        : `<button class="btn-icon" title="Suspend" onclick="askConfirmSA(${s.id},'suspend')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`) : ''}
     </td>
   </tr>`;
 }
@@ -324,6 +354,252 @@ function filterSchools() {
   const status = document.getElementById('statusFilter')?.value || '';
   const filtered = applySchoolFilters(window._allSchools || [], search, plan, status);
   document.getElementById('schoolsTbody').innerHTML = renderSchoolRowsOrEmpty(filtered);
+}
+
+// ================= Employees (internal company/platform team) =================
+const ROLE_LABELS = {
+  super_admin: 'Super Admin', support: 'Support', billing: 'Billing',
+  content: 'Content', read_only: 'Read Only',
+};
+
+async function renderEmployees(preserveFilters) {
+  const searchVal = preserveFilters ? document.getElementById('employeeSearchInput')?.value : '';
+  const deptVal = preserveFilters ? document.getElementById('employeeDeptFilter')?.value : '';
+  const statusVal = preserveFilters ? document.getElementById('employeeStatusFilter')?.value : '';
+  const employees = await cachedApiOrDemo(
+    'employees',
+    () => SuperAdminApi.getEmployees({ search: searchVal, department: deptVal, status: statusVal }),
+    DEMO_DATA.employees
+  );
+  window._allEmployees = employees;
+  const filtered = applyEmployeeFilters(employees, searchVal, deptVal, statusVal);
+  const el = document.getElementById('saMainContent');
+  const active = employees.filter(e => e.status === 'Active').length;
+  const invited = employees.filter(e => e.status === 'Invited').length;
+  el.innerHTML = `
+    <div class="sa-stats-grid fade-in">
+      <div class="sa-stat-card"><div class="sa-stat-top"><span class="sa-stat-label">Total employees</span></div><div class="sa-stat-value">${employees.length}</div><div class="sa-stat-sub">across all departments</div></div>
+      <div class="sa-stat-card"><div class="sa-stat-top"><span class="sa-stat-label">Active</span></div><div class="sa-stat-value">${active}</div><div class="sa-stat-sub up">have logged in</div></div>
+      <div class="sa-stat-card"><div class="sa-stat-top"><span class="sa-stat-label">Invite pending</span></div><div class="sa-stat-value">${invited}</div><div class="sa-stat-sub ${invited ? 'warn' : ''}">haven't set a password yet</div></div>
+      <div class="sa-stat-card"><div class="sa-stat-top"><span class="sa-stat-label">Suspended</span></div><div class="sa-stat-value">${employees.filter(e => e.status === 'Suspended').length}</div><div class="sa-stat-sub">access revoked</div></div>
+    </div>
+    <div class="toolbar fade-in">
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="employeeSearchInput" placeholder="Search by name, email, or employee ID..." value="${searchVal || ''}" oninput="filterEmployees()">
+      </div>
+      <select id="employeeDeptFilter" onchange="filterEmployees()">
+        <option value="">All departments</option>
+        <option ${deptVal === 'Engineering' ? 'selected' : ''}>Engineering</option>
+        <option ${deptVal === 'Support' ? 'selected' : ''}>Support</option>
+        <option ${deptVal === 'Sales' ? 'selected' : ''}>Sales</option>
+        <option ${deptVal === 'Operations' ? 'selected' : ''}>Operations</option>
+        <option ${deptVal === 'Finance' ? 'selected' : ''}>Finance</option>
+        <option ${deptVal === 'HR' ? 'selected' : ''}>HR</option>
+      </select>
+      <select id="employeeStatusFilter" onchange="filterEmployees()">
+        <option value="">All status</option>
+        <option ${statusVal === 'Active' ? 'selected' : ''}>Active</option>
+        <option ${statusVal === 'Invited' ? 'selected' : ''}>Invited</option>
+        <option ${statusVal === 'Suspended' ? 'selected' : ''}>Suspended</option>
+      </select>
+    </div>
+    <div class="card fade-in">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Employee</th><th>Department</th><th>Access role</th><th>Status</th><th>Joined / Invited</th><th></th></tr></thead>
+          <tbody id="employeesTbody">${renderEmployeeRowsOrEmpty(filtered)}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function applyEmployeeFilters(employees, search, department, status) {
+  return employees.filter(e => {
+    const s = (search || '').toLowerCase();
+    const matchesSearch = !s || e.name.toLowerCase().includes(s) || e.email.toLowerCase().includes(s) || (e.employeeId || '').toLowerCase().includes(s);
+    const matchesDept = !department || e.department === department;
+    const matchesStatus = !status || e.status === status;
+    return matchesSearch && matchesDept && matchesStatus;
+  });
+}
+
+function renderEmployeeRowsOrEmpty(rows) {
+  if (!rows.length) {
+    return `<tr><td colspan="6"><div class="empty-state">
+      <div class="empty-icon">🧑‍💼</div>
+      <div class="empty-title">No employees match these filters</div>
+      <div style="font-size:0.82rem">Try clearing the search or filters, or invite a new employee.</div>
+    </div></td></tr>`;
+  }
+  return rows.map(employeeRow).join('');
+}
+
+function employeeRow(e) {
+  const initials = e.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  const statusClass = e.status === 'Active' ? 'status-active' : e.status === 'Suspended' ? 'status-suspended' : 'status-pending';
+  return `<tr>
+    <td><div class="employee-info" style="cursor:pointer" onclick="viewEmployee(${e.id})">
+      <div class="employee-avatar">${initials}</div>
+      <div><div class="employee-name">${e.name}</div><div class="employee-sub">${e.email}${e.employeeId ? ' · ' + e.employeeId : ''}</div></div>
+    </div></td>
+    <td><div class="employee-name" style="font-weight:400">${e.department}</div><div class="employee-sub">${e.designation || ''}</div></td>
+    <td>${(e.roles || [e.role]).map(r => `<span class="role-badge role-${r}">${ROLE_LABELS[r] || r}</span>`).join(' ')}</td>
+    <td><span class="status ${statusClass}"><span class="status-dot"></span>${e.status}</span></td>
+    <td style="color:var(--text3);font-size:0.8rem">${e.status === 'Invited' ? 'Invited ' + timeAgo(e.invited_at) : (e.joined_at || '—')}</td>
+    <td>
+      <button class="btn-icon" title="View" onclick="viewEmployee(${e.id})">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      ${(() => {
+        const role = getCurrentEmployeeRoles();
+        if (e.status === 'Invited') return canDo(role, 'employee.resendInvite')
+          ? `<button class="btn-icon" title="Resend invite" onclick="resendEmployeeInvite(${e.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>` : '';
+        if (!canDo(role, 'employee.suspend')) return '';
+        return e.status === 'Suspended'
+          ? `<button class="btn-icon" title="Activate" onclick="askConfirmSA(${e.id},'activate','employee')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>`
+          : `<button class="btn-icon" title="Suspend" onclick="askConfirmSA(${e.id},'suspend','employee')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`;
+      })()}
+    </td>
+  </tr>`;
+}
+
+function filterEmployees() {
+  const search = document.getElementById('employeeSearchInput')?.value || '';
+  const dept = document.getElementById('employeeDeptFilter')?.value || '';
+  const status = document.getElementById('employeeStatusFilter')?.value || '';
+  const filtered = applyEmployeeFilters(window._allEmployees || [], search, dept, status);
+  document.getElementById('employeesTbody').innerHTML = renderEmployeeRowsOrEmpty(filtered);
+}
+
+// ---------- Add / view employee ----------
+function openAddEmployeeModal() {
+  document.getElementById('empPageGroup').innerHTML = ALL_PAGES.map(p =>
+    `<label class="emp-page-item"><input type="checkbox" name="empPage" value="${p.key}"> ${p.label}</label>`).join('');
+  // Seed the page list from whichever role checkboxes start out checked (Support, by default).
+  document.querySelectorAll('#empRoleGroup input[name="empRole"]:checked').forEach(cb => setPagesForRole(cb.value, true));
+  document.getElementById('employeeModal').classList.add('show');
+  document.getElementById('employeeModal').style.display = 'flex';
+}
+
+/** Checks or unchecks the page boxes belonging to one role. Used both when
+ *  a role is toggled on/off, and to seed the form's default state. */
+function setPagesForRole(role, checked) {
+  const pages = ROLE_PERMISSIONS[role]?.pages || [];
+  pages.forEach(page => {
+    const box = document.querySelector(`#empPageGroup input[value="${page}"]`);
+    if (box) box.checked = checked;
+  });
+}
+
+/** Fires when a role checkbox is ticked/unticked.
+ *  - Ticking a role AUTO-TICKS its usual pages (a shortcut, not a lock —
+ *    you can still individually untick any of them right after, e.g. tick
+ *    "Content" but untick "Feature Flags" if you don't want to give that one).
+ *  - Unticking a role only auto-UNTICKS a page if no OTHER currently-ticked
+ *    role still needs it, so combined roles don't fight each other. */
+function onEmpRoleToggle(checkbox) {
+  const role = checkbox.value;
+  if (checkbox.checked) {
+    setPagesForRole(role, true);
+    return;
+  }
+  const stillNeeded = new Set();
+  document.querySelectorAll('#empRoleGroup input[name="empRole"]:checked').forEach(cb => {
+    (ROLE_PERMISSIONS[cb.value]?.pages || []).forEach(p => stillNeeded.add(p));
+  });
+  (ROLE_PERMISSIONS[role]?.pages || []).forEach(page => {
+    if (!stillNeeded.has(page)) {
+      const box = document.querySelector(`#empPageGroup input[value="${page}"]`);
+      if (box) box.checked = false;
+    }
+  });
+}
+function closeEmployeeModal() {
+  document.getElementById('employeeModal').classList.remove('show');
+  document.getElementById('employeeModal').style.display = 'none';
+}
+
+async function saveEmployee() {
+  if (!canDo(getCurrentEmployeeRoles(), 'employee.create')) {
+    showToastSA("You don't have permission to add employees", 'error');
+    return;
+  }
+  const name = document.getElementById('empName').value.trim();
+  const email = document.getElementById('empEmail').value.trim();
+  const roles = Array.from(document.querySelectorAll('#empRoleGroup input[name="empRole"]:checked')).map(cb => cb.value);
+  const pages = Array.from(document.querySelectorAll('#empPageGroup input[name="empPage"]:checked')).map(cb => cb.value);
+  if (!name || !email || !roles.length) {
+    showToastSA('Full name, email, and at least one access role are required', 'error');
+    return;
+  }
+  const payload = {
+    name, email, roles, pages,
+    phone: document.getElementById('empPhone').value,
+    designation: document.getElementById('empDesignation').value,
+    department: document.getElementById('empDepartment').value,
+    employmentType: document.getElementById('empType').value,
+    status: document.getElementById('empStatus').value,
+    notes: document.getElementById('empNotes').value,
+  };
+  try {
+    // Backend generates the invite token and emails
+    // set-password.html?token=<token>&role=<role> to payload.email.
+    await SuperAdminApi.inviteEmployee(payload);
+    showToastSA('Employee added, invite sent', 'success');
+  } catch (e) {
+    showToastSA('Saved locally — connect backend to send the real invite', 'info');
+  }
+  invalidateCache('employees');
+  closeEmployeeModal();
+  navigateSA('employees');
+}
+
+async function viewEmployee(id) {
+  const employee = (window._allEmployees || DEMO_DATA.employees).find(e => e.id === id)
+    || await apiOrDemo(() => SuperAdminApi.getEmployee(id), null);
+  if (!employee) return;
+  document.getElementById('entityDetailTitle').textContent = employee.name;
+  document.getElementById('entityDetailBody').innerHTML = `
+    <div class="sa-detail-grid">
+      <div class="sa-detail-block">
+        <div class="sa-detail-block-title">Employee</div>
+        <div class="sa-detail-row"><span>Email</span><span>${employee.email}</span></div>
+        <div class="sa-detail-row"><span>Phone</span><span>${employee.phone || '—'}</span></div>
+        <div class="sa-detail-row"><span>Employee ID</span><span>${employee.employeeId || '—'}</span></div>
+        <div class="sa-detail-row"><span>Employment type</span><span>${employee.type || '—'}</span></div>
+      </div>
+      <div class="sa-detail-block">
+        <div class="sa-detail-block-title">Department & access</div>
+        <div class="sa-detail-row"><span>Department</span><span>${employee.department}</span></div>
+        <div class="sa-detail-row"><span>Designation</span><span>${employee.designation || '—'}</span></div>
+        <div class="sa-detail-row"><span>Access role(s)</span><span>${(employee.roles || [employee.role]).map(r => ROLE_LABELS[r] || r).join(', ')}</span></div>
+        <div class="sa-detail-row"><span>Status</span><span>${employee.status}</span></div>
+      </div>
+      <div class="sa-detail-block" style="grid-column:1/-1;display:flex;gap:10px">
+        ${(() => {
+          const role = getCurrentEmployeeRoles();
+          if (employee.status === 'Invited') return canDo(role, 'employee.resendInvite')
+            ? `<button class="btn btn-secondary" style="flex:1" onclick="resendEmployeeInvite(${employee.id})">Resend invite</button>` : '';
+          if (!canDo(role, 'employee.suspend')) return '';
+          return employee.status === 'Suspended'
+            ? `<button class="btn btn-secondary" style="flex:1" onclick="askConfirmSA(${employee.id},'activate','employee')">Restore access</button>`
+            : `<button class="btn btn-secondary" style="flex:1" onclick="askConfirmSA(${employee.id},'suspend','employee')">Suspend access</button>`;
+        })()}
+        <button class="btn btn-primary" style="flex:1" onclick="closeOverlaySA('entityDetailModal')">Close</button>
+      </div>
+    </div>`;
+  document.getElementById('entityDetailModal').classList.add('show');
+  document.getElementById('entityDetailModal').style.display = 'flex';
+}
+
+async function resendEmployeeInvite(employeeId) {
+  try {
+    await SuperAdminApi.resendEmployeeInvite(employeeId);
+    showToastSA('Invite resent', 'success');
+  } catch (e) {
+    showToastSA('Connect backend to send invites', 'info');
+  }
 }
 
 // ================= Students (cross-tenant, read-only) =================
@@ -438,7 +714,7 @@ function viewStudent(id) {
         <div class="sa-detail-row"><span>Last active</span><span>${s.lastActive}</span></div>
       </div>
       <div class="sa-detail-block" style="grid-column:1/-1;display:flex;gap:10px">
-        <button class="btn btn-secondary" style="flex:1" onclick="impersonateSchool(${s.schoolId},'${s.schoolName.replace(/'/g, "\\'")}')">View as School Admin</button>
+        ${canDo(getCurrentEmployeeRoles(), 'impersonate') ? `<button class="btn btn-secondary" style="flex:1" onclick="impersonateSchool(${s.schoolId},'${s.schoolName.replace(/'/g, "\\'")}')">View as School Admin</button>` : ''}
         <button class="btn btn-primary" style="flex:1" onclick="closeOverlaySA('entityDetailModal')">Open in School Dashboard</button>
       </div>
     </div>`;
@@ -484,7 +760,7 @@ async function renderAdmins() {
       <td>${s.name}</td>
       <td style="color:var(--text3)">${s.adminEmail}</td>
       <td><span class="status status-active"><span class="status-dot"></span>Accepted</span></td>
-      <td><button class="btn btn-secondary btn-sm" onclick="resendInvite(${s.id})">Resend invite</button></td>
+      <td>${canDo(getCurrentEmployeeRoles(), 'school.resendInvite') ? `<button class="btn btn-secondary btn-sm" onclick="resendInvite(${s.id})">Resend invite</button>` : ''}</td>
     </tr>`).join('')
     : `<tr><td colspan="5"><div class="empty-state">
         <div class="empty-icon">👤</div>
@@ -576,10 +852,10 @@ function viewTicket(id) {
       <div class="sa-detail-row"><span>Status</span><span>${t.status}</span></div>
       <div class="sa-detail-row"><span>Updated</span><span>${t.updatedAgo}</span></div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:1rem">
+    ${canDo(getCurrentEmployeeRoles(), 'ticket.update') ? `<div style="display:flex;gap:10px;margin-top:1rem">
       <button class="btn btn-secondary" style="flex:1" onclick="updateTicket(${t.id},'pending')">Mark pending</button>
       <button class="btn btn-primary" style="flex:1" onclick="updateTicket(${t.id},'resolved')">Mark resolved</button>
-    </div>`;
+    </div>` : ''}`;
   document.getElementById('entityDetailModal').classList.add('show');
   document.getElementById('entityDetailModal').style.display = 'flex';
 }
@@ -613,14 +889,14 @@ async function renderNotifications() {
   const el = document.getElementById('saMainContent');
   el.innerHTML = `
     <div class="card fade-in"><div class="card-header"><span class="card-title">Send a broadcast</span></div>
-      <div class="card-body notif-composer">
+      ${canDo(getCurrentEmployeeRoles(), 'notification.send') ? `<div class="card-body notif-composer">
         <input type="text" id="notifTitle" placeholder="Title (e.g. Scheduled maintenance — July 30)" class="form-select" style="width:100%">
         <textarea id="notifBody" placeholder="Message to school admins..." style="width:100%;min-height:80px;padding:10px;border-radius:8px;border:1px solid var(--border)"></textarea>
         <select id="notifAudience" class="form-select" style="max-width:220px">
           <option>All schools</option><option>Trial schools</option><option>Basic plan</option><option>Pro & Enterprise</option>
         </select>
         <button class="btn btn-primary" style="align-self:flex-start" onclick="sendNotificationNow()">Send broadcast</button>
-      </div>
+      </div>` : ''}
     </div>
     <div class="card fade-in"><div class="card-header"><span class="card-title">Recently sent</span></div>
       <div class="card-body">${notifs.map(n => `<div class="notif-row">
@@ -651,13 +927,16 @@ async function renderFeatureFlags() {
   window._allFlags = flags;
   const el = document.getElementById('saMainContent');
   el.innerHTML = `<div class="card fade-in"><div class="card-body">
-    ${flags.map(f => `<div class="flag-row">
+    ${flags.map(f => {
+      const canToggle = canDo(getCurrentEmployeeRoles(), 'flag.toggle');
+      return `<div class="flag-row">
         <div><div class="flag-name">${f.name}</div><div class="flag-desc">${f.desc} · ${f.scope}</div></div>
         <label class="toggle">
-          <input type="checkbox" ${f.enabled ? 'checked' : ''} onchange="toggleFlag('${f.key}', this.checked)">
+          <input type="checkbox" ${f.enabled ? 'checked' : ''} ${canToggle ? '' : 'disabled'} onchange="toggleFlag('${f.key}', this.checked)">
           <span class="toggle-slider"></span>
         </label>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
   </div></div>`;
 }
 async function toggleFlag(key, enabled) {
@@ -744,6 +1023,10 @@ function applyPlanDefaults() {
 }
 
 async function saveSchool() {
+  if (!canDo(getCurrentEmployeeRoles(), 'school.create')) {
+    showToastSA("You don't have permission to add schools", 'error');
+    return;
+  }
   const name = document.getElementById('schName').value.trim();
   const subdomain = document.getElementById('schSubdomain').value.trim();
   const adminEmail = document.getElementById('adminEmail').value.trim();
@@ -819,15 +1102,25 @@ function closeOverlaySA(id) {
 }
 
 // ---------- Suspend / activate ----------
-function askConfirmSA(schoolId, action) {
-  pendingSchoolId = schoolId;
+function askConfirmSA(entityId, action, type = 'school') {
+  const role = getCurrentEmployeeRoles();
+  const requiredAction = type === 'employee' ? 'employee.suspend' : 'school.suspend';
+  if (!canDo(role, requiredAction)) {
+    showToastSA("You don't have permission to do that", 'error');
+    return;
+  }
+  pendingSchoolId = entityId;
   pendingConfirmAction = action;
+  pendingConfirmType = type;
   const isSuspend = action === 'suspend';
-  document.getElementById('confirmTitleSA').textContent = isSuspend ? 'Suspend this school?' : 'Activate this school?';
+  const isEmployee = type === 'employee';
+  document.getElementById('confirmTitleSA').textContent = isSuspend
+    ? (isEmployee ? 'Suspend this employee?' : 'Suspend this school?')
+    : (isEmployee ? 'Restore this employee\'s access?' : 'Activate this school?');
   document.getElementById('confirmTextSA').textContent = isSuspend
-    ? 'Staff and students at this school will lose access immediately. This can be reversed.'
-    : 'This will restore access for all staff and students at this school.';
-  document.getElementById('confirmActionBtnSA').textContent = isSuspend ? 'Suspend' : 'Activate';
+    ? (isEmployee ? 'They will immediately lose access to the platform. This can be reversed.' : 'Staff and students at this school will lose access immediately. This can be reversed.')
+    : (isEmployee ? 'This will restore their login access with their previous role.' : 'This will restore access for all staff and students at this school.');
+  document.getElementById('confirmActionBtnSA').textContent = isSuspend ? 'Suspend' : (isEmployee ? 'Restore access' : 'Activate');
   document.getElementById('confirmModalSA').style.display = 'flex';
   document.getElementById('confirmModalSA').classList.add('show');
 }
@@ -836,17 +1129,29 @@ function closeConfirmSA() {
   document.getElementById('confirmModalSA').style.display = 'none';
 }
 async function confirmActionSA() {
+  const isEmployee = pendingConfirmType === 'employee';
   try {
-    if (pendingConfirmAction === 'suspend') await SuperAdminApi.suspendSchool(pendingSchoolId);
-    else await SuperAdminApi.activateSchool(pendingSchoolId);
-    showToastSA(`School ${pendingConfirmAction}d`, 'success');
+    if (isEmployee) {
+      if (pendingConfirmAction === 'suspend') await SuperAdminApi.suspendEmployee(pendingSchoolId);
+      else await SuperAdminApi.activateEmployee(pendingSchoolId);
+    } else {
+      if (pendingConfirmAction === 'suspend') await SuperAdminApi.suspendSchool(pendingSchoolId);
+      else await SuperAdminApi.activateSchool(pendingSchoolId);
+    }
+    showToastSA(`${isEmployee ? 'Employee' : 'School'} ${pendingConfirmAction === 'suspend' ? 'suspended' : 'activated'}`, 'success');
   } catch (e) {
     showToastSA('Connect backend to apply this action', 'info');
   }
-  invalidateCache('schools');
-  invalidateCache('stats');
+  closeOverlaySA('entityDetailModal');
   closeConfirmSA();
-  renderSchools();
+  if (isEmployee) {
+    invalidateCache('employees');
+    renderEmployees();
+  } else {
+    invalidateCache('schools');
+    invalidateCache('stats');
+    renderSchools();
+  }
 }
 
 async function resendInvite(schoolId) {
@@ -878,5 +1183,7 @@ function showToastSA(msg, type = 'info') {
 (function initSuperAdmin() {
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (user && user.name) document.getElementById('saUserName').textContent = user.name;
-  navigateSA('overview');
+  const pages = getCurrentEmployeePages();
+  applyNavPermissions(pages);
+  navigateSA(pages.includes(DEFAULT_LANDING_PAGE) ? DEFAULT_LANDING_PAGE : (pages[0] || DEFAULT_LANDING_PAGE));
 })();

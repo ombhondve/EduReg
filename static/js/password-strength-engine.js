@@ -129,13 +129,31 @@
   // .success-container no longer hardcodes display:none, so setting
   // display:flex here + clearing the hidden attribute is what actually
   // reveals it (previously the CSS override made this impossible).
-  function showSuccessScreen() {
+  function showSuccessScreen(role) {
     resetFormVisuals();
     formStatus.textContent = '';
 
     formContainer.hidden = true;
     successContainer.hidden = false;
     successContainer.style.display = 'flex';
+
+    // Stash the resolved role on the button itself so the click handler
+    // (bound once, below) knows where to send this specific user.
+    if (loginBtn) loginBtn.dataset.role = role || '';
+  }
+
+  // Where each role lands after setting a password. Add more roles here
+  // as needed — this is the ONE place that ever needs updating.
+  const ROLE_REDIRECTS = {
+    admin: '/admin_login',
+    staff: '/admin_login',
+    student: 'login.html',   // replace with your real student/college login path
+    college: 'login.html'
+  };
+  const DEFAULT_REDIRECT = 'login.html';
+
+  function resolveRedirect(role) {
+    return ROLE_REDIRECTS[role] || DEFAULT_REDIRECT;
   }
 
   newPasswordInput.addEventListener('input', refreshSubmitState);
@@ -148,7 +166,21 @@
 
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
-
+    const type = params.get("type");
+    let roleFromLink = "";
+    switch (type) {
+      case "col-admin":
+        roleFromLink = "college";
+        break;
+      case "com-emp":
+        roleFromLink = "staff";
+        break;
+      case "student":
+        roleFromLink = "student";
+        break;
+      default:
+        console.log("Unknown user type");
+    }
     if (!token) {
       formStatus.style.color = 'red';
       formStatus.textContent = 'This link is missing or invalid. Please use the link from your email.';
@@ -162,10 +194,16 @@
     const password = newPasswordInput.value;
 
     try {
-      const response = await fetch('http://127.0.0.1:5000/auth/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password })
+      const response = await fetch("http://127.0.0.1:5000/auth/set-password", {
+      method: "POST",
+      headers: {
+          "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+          token,
+          type,
+          password
+      })
       });
 
       let result = {};
@@ -176,7 +214,11 @@
       }
 
       if (response.ok && result.success) {
-        showSuccessScreen();
+        // Prefer the role the backend confirms for this token (source of
+        // truth, tied to the account record) — fall back to the role
+        // carried in the link itself if the backend doesn't send one.
+        const role = (result.user && result.user.role) || result.role || roleFromLink;
+        showSuccessScreen(role);
       } else {
         formStatus.style.color = 'red';
         formStatus.textContent = result.message || 'Failed to set password';
@@ -192,7 +234,7 @@
 
   if (loginBtn) {
     loginBtn.addEventListener('click', () => {
-      window.location.href = '/login.html'; // adjust to your real login page path
+      window.location.href = resolveRedirect(loginBtn.dataset.role);
     });
   }
 })();

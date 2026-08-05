@@ -1,33 +1,538 @@
 from flask import jsonify, request
 from pymysql import connect, cursors
+from dbutils.pooled_db import PooledDB
 from dotenv import load_dotenv
 import os
+import json
 
 load_dotenv("env.env")
+_CORE_SCHEMA_READY = False
+pool = PooledDB(
+    creator=__import__("pymysql"),   # the DB driver to use
+    maxconnections=10,               # max connections the pool will ever hold
+    mincached=2,                     # connections kept ready even when idle
+    maxcached=5,                     # max idle connections kept in reserve
+    blocking=True,                   # if pool is full, wait instead of erroring
+    host=os.getenv("host"),
+    user=os.getenv("user"),
+    password=os.getenv("password"),
+    database=os.getenv("database"),
+    cursorclass=cursors.DictCursor,
+)
 class controller:
     def __init__(self):
         self.DB_connections()
+    def DB_connections(self):
+        global _CORE_SCHEMA_READY
+        # Instead of connect(...), check out a connection from the pool.
+        self.conn = pool.connection()
+        self.cur = self.conn.cursor()
+        if not _CORE_SCHEMA_READY:
+            self.ensure_core_schema()
+            _CORE_SCHEMA_READY = True
 
-    def DB_connections(self, database_name=None):
+    def close(self):
+        # Returns the connection to the pool instead of really closing it.
+        self.cur.close()
+        self.conn.close()
+
+    def ensure_core_schema(self):
         try:
-            self.conn = connect(
-                host=os.getenv("host"),
-                user=os.getenv("user"),
-                password=os.getenv("password"),
-                database=os.getenv("database")
-            )
-            self.cur = self.conn.cursor(cursors.DictCursor)
-
-
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS courses (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(150) NOT NULL,
+                    course_code VARCHAR(50) NOT NULL UNIQUE,
+                    duration VARCHAR(50) DEFAULT NULL,
+                    status VARCHAR(30) NOT NULL DEFAULT 'Active'
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS students (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    firstName VARCHAR(100) NOT NULL,
+                    lastName VARCHAR(100) NOT NULL,
+                    email VARCHAR(150) NOT NULL UNIQUE,
+                    phone VARCHAR(30) DEFAULT NULL,
+                    dob DATE DEFAULT NULL,
+                    gender VARCHAR(30) DEFAULT NULL,
+                    address TEXT DEFAULT NULL,
+                    year VARCHAR(50) DEFAULT NULL,
+                    gpa DECIMAL(4,2) DEFAULT NULL,
+                    status VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    notes TEXT DEFAULT NULL,
+                    course_id INT DEFAULT NULL,
+                    hashed_password VARCHAR(255) DEFAULT NULL,
+                    reset_token VARCHAR(255) DEFAULT NULL,
+                    token_expiry DATETIME DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_students_courses
+                        FOREIGN KEY (course_id) REFERENCES courses(id)
+                        ON UPDATE CASCADE
+                        ON DELETE SET NULL
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS documents (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    student_id INT NOT NULL,
+                    doc_type VARCHAR(100) NOT NULL,
+                    file_name VARCHAR(255) NOT NULL,
+                    file_path VARCHAR(500) DEFAULT NULL,
+                    mime_type VARCHAR(120) DEFAULT NULL,
+                    size_bytes INT DEFAULT 0,
+                    status VARCHAR(40) NOT NULL DEFAULT 'Pending Review',
+                    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    reviewed_by VARCHAR(120) DEFAULT NULL,
+                    reviewed_at DATETIME DEFAULT NULL,
+                    review_note TEXT DEFAULT NULL,
+                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(200) NOT NULL,
+                    message TEXT,
+                    type VARCHAR(40) DEFAULT 'general',
+                    audience VARCHAR(40) DEFAULT 'all',
+                    audience_value VARCHAR(150) DEFAULT NULL,
+                    student_id INT DEFAULT NULL,
+                    recipient_count INT DEFAULT 0,
+                    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS attendance_records (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    course VARCHAR(150) NOT NULL,
+                    record_date DATE NOT NULL,
+                    present INT NOT NULL DEFAULT 0,
+                    absent INT NOT NULL DEFAULT 0,
+                    late INT NOT NULL DEFAULT 0,
+                    present_pct INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS fee_records (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    student_id INT DEFAULT NULL,
+                    student_name VARCHAR(200) NOT NULL,
+                    fee_type VARCHAR(80) NOT NULL,
+                    amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+                    status VARCHAR(40) NOT NULL DEFAULT 'Pending',
+                    due_date DATE DEFAULT NULL,
+                    notes TEXT DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS timetable_entries (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    course VARCHAR(150) NOT NULL,
+                    day VARCHAR(20) NOT NULL,
+                    start_time TIME NOT NULL,
+                    end_time TIME NOT NULL,
+                    subject VARCHAR(150) NOT NULL,
+                    room VARCHAR(80) DEFAULT NULL,
+                    faculty VARCHAR(120) DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS calendar_events (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(200) NOT NULL,
+                    event_date DATE NOT NULL,
+                    category VARCHAR(50) NOT NULL DEFAULT 'Event',
+                    description TEXT DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    student_id INT DEFAULT NULL,
+                    student_name VARCHAR(200) NOT NULL,
+                    sender VARCHAR(30) NOT NULL,
+                    body TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS staff_roles (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(150) NOT NULL,
+                    email VARCHAR(150) NOT NULL UNIQUE,
+                    role VARCHAR(80) NOT NULL DEFAULT 'Staff',
+                    status VARCHAR(40) NOT NULL DEFAULT 'Active',
+                    permissions JSON,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS activity_logs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    actor VARCHAR(150) NOT NULL,
+                    action VARCHAR(150) NOT NULL,
+                    target VARCHAR(255) DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            self.cur.execute("""
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    setting_key VARCHAR(80) PRIMARY KEY,
+                    setting_value TEXT
+                )
+            """)
+            self.cur.execute("SELECT COUNT(*) AS total FROM courses")
+            if (self.cur.fetchone() or {}).get("total", 0) == 0:
+                self.cur.executemany(
+                    """
+                    INSERT INTO courses (name, course_code, duration, status)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        ("Computer Science Engineering", "CSE", "4 years", "Active"),
+                        ("Mechanical Engineering", "ME", "4 years", "Active"),
+                        ("Civil Engineering", "CE", "4 years", "Active"),
+                        ("Electrical Engineering", "EE", "4 years", "Active"),
+                        ("Business Administration", "BBA", "3 years", "Active"),
+                    ],
+                )
+            self.conn.commit()
         except Exception as e:
-            self.conn = connect(
-                host=os.getenv("host"),
-                user=os.getenv("user"),
-                password=os.getenv("password"),
-                database=database_name
-            )
-            self.cur = self.conn.cursor(cursors.DictCursor)
+            print(f"Error ensuring core schema: {e}")
+            self.conn.rollback()
 
+    def _query_all(self, query, params=None):
+        self.cur.execute(query, params or [])
+        return self.cur.fetchall()
+
+    def _query_one(self, query, params=None):
+        self.cur.execute(query, params or [])
+        return self.cur.fetchone()
+
+    def _student_name_expr(self):
+        return "TRIM(CONCAT(COALESCE(s.firstName,''), ' ', COALESCE(s.lastName,'')))"
+
+    def _document_row(self, row):
+        return {
+            "id": row.get("id"),
+            "studentId": str(row.get("student_id")),
+            "studentName": row.get("studentName") or "",
+            "docType": row.get("doc_type"),
+            "fileName": row.get("file_name"),
+            "fileUrl": f"/documents/{row.get('id')}/file" if row.get("file_path") else "",
+            "mimeType": row.get("mime_type") or "",
+            "sizeBytes": row.get("size_bytes") or 0,
+            "status": row.get("status"),
+            "uploadedAt": row.get("uploaded_at"),
+            "reviewedBy": row.get("reviewed_by"),
+            "reviewedAt": row.get("reviewed_at"),
+            "reviewNote": row.get("review_note") or "",
+        }
+
+    def fetch_documents(self, status="", doc_type="", student=""):
+        query = f"""
+            SELECT d.*, {self._student_name_expr()} AS studentName
+            FROM documents d
+            LEFT JOIN students s ON s.id=d.student_id
+            WHERE 1=1
+        """
+        params = []
+        if status:
+            query += " AND d.status=%s"
+            params.append(status)
+        if doc_type:
+            query += " AND d.doc_type=%s"
+            params.append(doc_type)
+        if student:
+            query += " AND (d.student_id=%s OR s.firstName LIKE %s OR s.lastName LIKE %s)"
+            params.extend([student, f"%{student}%", f"%{student}%"])
+        query += " ORDER BY d.uploaded_at DESC"
+        return [self._document_row(row) for row in self._query_all(query, params)]
+
+    def add_document(self, student_id, doc_type, file_name, file_path="", mime_type="", size_bytes=0, status="Pending Review"):
+        self.cur.execute(
+            """
+            INSERT INTO documents(student_id, doc_type, file_name, file_path, mime_type, size_bytes, status)
+            VALUES(%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (student_id, doc_type, file_name, file_path, mime_type, size_bytes, status),
+        )
+        self.conn.commit()
+        return self.fetch_documents(student=str(student_id))[0]
+
+    def update_document(self, document_id, status, review_note=""):
+        self.cur.execute(
+            "UPDATE documents SET status=%s, review_note=%s, reviewed_at=NOW() WHERE id=%s",
+            (status, review_note, document_id),
+        )
+        self.conn.commit()
+        return next((doc for doc in self.fetch_documents() if int(doc["id"]) == int(document_id)), None)
+
+    def delete_document(self, document_id):
+        self.cur.execute("DELETE FROM documents WHERE id=%s", (document_id,))
+        self.conn.commit()
+        return True
+
+    def get_document_file(self, document_id):
+        return self._query_one("SELECT file_path, file_name, mime_type FROM documents WHERE id=%s", (document_id,))
+
+    def fetch_notifications(self, notif_type="", audience="", limit=None):
+        query = "SELECT * FROM notifications WHERE 1=1"
+        params = []
+        if notif_type:
+            query += " AND type=%s"
+            params.append(notif_type)
+        if audience:
+            query += " AND audience=%s"
+            params.append(audience)
+        query += " ORDER BY sent_at DESC"
+        if limit:
+            query += " LIMIT %s"
+            params.append(int(limit))
+        rows = self._query_all(query, params)
+        return [{
+            "id": row["id"],
+            "title": row["title"],
+            "message": row.get("message") or "",
+            "type": row.get("type") or "general",
+            "audience": row.get("audience") or "all",
+            "audienceValue": row.get("audience_value"),
+            "studentId": row.get("student_id"),
+            "recipientCount": row.get("recipient_count") or 0,
+            "sentAt": row.get("sent_at"),
+        } for row in rows]
+
+    def add_notification(self, data):
+        recipient_count = self._notification_recipient_count(data)
+        self.cur.execute(
+            """
+            INSERT INTO notifications(title, message, type, audience, audience_value, student_id, recipient_count)
+            VALUES(%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                data.get("title"), data.get("message"), data.get("type", "general"),
+                data.get("audience", "all"), data.get("audienceValue"),
+                data.get("studentId"), recipient_count,
+            ),
+        )
+        self.conn.commit()
+        return self.fetch_notifications(limit=1)[0]
+
+    def _notification_recipient_count(self, data):
+        audience = data.get("audience", "all")
+        if audience == "student" and data.get("studentId"):
+            return 1
+        if audience == "course" and data.get("audienceValue"):
+            row = self._query_one(
+                """
+                SELECT COUNT(*) AS total FROM students s
+                JOIN courses c ON c.id=s.course_id
+                WHERE c.name=%s OR c.id=%s
+                """,
+                (data.get("audienceValue"), data.get("audienceValue")),
+            )
+        elif audience == "status" and data.get("audienceValue"):
+            row = self._query_one("SELECT COUNT(*) AS total FROM students WHERE status=%s", (data.get("audienceValue"),))
+        else:
+            row = self._query_one("SELECT COUNT(*) AS total FROM students")
+        return int((row or {}).get("total") or 0)
+
+    def delete_notification(self, notification_id):
+        self.cur.execute("DELETE FROM notifications WHERE id=%s", (notification_id,))
+        self.conn.commit()
+        return True
+
+    def fetch_attendance(self):
+        return [{
+            "id": f"ATT-{row['id']}",
+            "date": str(row["record_date"]),
+            "course": row["course"],
+            "present": row["present"],
+            "absent": row["absent"],
+            "late": row["late"],
+            "presentPct": row["present_pct"],
+        } for row in self._query_all("SELECT * FROM attendance_records ORDER BY record_date DESC, id DESC")]
+
+    def add_attendance(self, data):
+        self.cur.execute(
+            """
+            INSERT INTO attendance_records(course, record_date, present, absent, late, present_pct)
+            VALUES(%s, %s, %s, %s, %s, %s)
+            """,
+            (data.get("course"), data.get("date"), data.get("present", 0), data.get("absent", 0), data.get("late", 0), data.get("presentPct", 0)),
+        )
+        self.conn.commit()
+        return self.fetch_attendance()[0]
+
+    def delete_attendance(self, record_id):
+        self.cur.execute("DELETE FROM attendance_records WHERE id=%s", (str(record_id).replace("ATT-", ""),))
+        self.conn.commit()
+        return True
+
+    def fetch_fees(self):
+        return [{
+            "id": f"FEE-{row['id']}",
+            "studentId": str(row.get("student_id") or ""),
+            "studentName": row["student_name"],
+            "feeType": row["fee_type"],
+            "amount": float(row["amount"] or 0),
+            "status": row["status"],
+            "dueDate": str(row["due_date"]) if row.get("due_date") else "",
+            "notes": row.get("notes") or "",
+        } for row in self._query_all("SELECT * FROM fee_records ORDER BY created_at DESC, id DESC")]
+
+    def add_fee(self, data):
+        self.cur.execute(
+            """
+            INSERT INTO fee_records(student_id, student_name, fee_type, amount, status, due_date, notes)
+            VALUES(%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                data.get("studentId") or None, data.get("studentName"), data.get("feeType"),
+                data.get("amount", 0), data.get("status", "Pending"), data.get("dueDate") or None,
+                data.get("notes"),
+            ),
+        )
+        self.conn.commit()
+        return self.fetch_fees()[0]
+
+    def delete_fee(self, fee_id):
+        self.cur.execute("DELETE FROM fee_records WHERE id=%s", (str(fee_id).replace("FEE-", ""),))
+        self.conn.commit()
+        return True
+
+    def fetch_timetable(self, course=""):
+        query = "SELECT * FROM timetable_entries WHERE 1=1"
+        params = []
+        if course:
+            query += " AND course=%s"
+            params.append(course)
+        query += " ORDER BY FIELD(day,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'), start_time"
+        return [{
+            "id": f"TT-{row['id']}",
+            "course": row["course"],
+            "day": row["day"],
+            "start": str(row["start_time"])[:5],
+            "end": str(row["end_time"])[:5],
+            "subject": row["subject"],
+            "room": row.get("room") or "",
+            "faculty": row.get("faculty") or "",
+        } for row in self._query_all(query, params)]
+
+    def add_timetable(self, data):
+        self.cur.execute(
+            """
+            INSERT INTO timetable_entries(course, day, start_time, end_time, subject, room, faculty)
+            VALUES(%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (data.get("course"), data.get("day"), data.get("start"), data.get("end"), data.get("subject"), data.get("room"), data.get("faculty")),
+        )
+        self.conn.commit()
+        return self.fetch_timetable()[0]
+
+    def delete_timetable(self, entry_id):
+        self.cur.execute("DELETE FROM timetable_entries WHERE id=%s", (str(entry_id).replace("TT-", ""),))
+        self.conn.commit()
+        return True
+
+    def fetch_calendar(self):
+        return [{
+            "id": f"EV-{row['id']}",
+            "title": row["title"],
+            "date": str(row["event_date"]),
+            "category": row["category"],
+            "description": row.get("description") or "",
+        } for row in self._query_all("SELECT * FROM calendar_events ORDER BY event_date, id")]
+
+    def add_calendar_event(self, data):
+        self.cur.execute(
+            "INSERT INTO calendar_events(title, event_date, category, description) VALUES(%s, %s, %s, %s)",
+            (data.get("title"), data.get("date"), data.get("category", "Event"), data.get("description")),
+        )
+        self.conn.commit()
+        return self.fetch_calendar()[-1]
+
+    def delete_calendar_event(self, event_id):
+        self.cur.execute("DELETE FROM calendar_events WHERE id=%s", (str(event_id).replace("EV-", ""),))
+        self.conn.commit()
+        return True
+
+    def fetch_message_threads(self):
+        rows = self._query_all("SELECT * FROM messages ORDER BY created_at ASC, id ASC")
+        threads = {}
+        for row in rows:
+            sid = str(row.get("student_id") or "")
+            if sid not in threads:
+                threads[sid] = {"studentId": sid, "studentName": row["student_name"], "messages": []}
+            threads[sid]["messages"].append({
+                "id": row["id"],
+                "from": "staff" if row["sender"] == "staff" else "student",
+                "sender": row["sender"],
+                "text": row["body"],
+                "body": row["body"],
+                "time": row["created_at"],
+            })
+        return list(reversed(list(threads.values())))
+
+    def add_message(self, student_id, student_name, body, sender="staff"):
+        self.cur.execute(
+            "INSERT INTO messages(student_id, student_name, sender, body) VALUES(%s, %s, %s, %s)",
+            (student_id or None, student_name, sender, body),
+        )
+        self.conn.commit()
+        return {"message": "Message sent", "id": self.cur.lastrowid}
+
+    def fetch_staff(self):
+        rows = self._query_all("SELECT * FROM staff_roles ORDER BY created_at DESC")
+        return [{
+            "id": f"STF-{row['id']}",
+            "name": row["name"],
+            "email": row["email"],
+            "role": row["role"],
+            "status": row["status"],
+            "permissions": json.loads(row["permissions"] or "[]"),
+        } for row in rows]
+
+    def upsert_staff(self, data, staff_id=None):
+        permissions = json.dumps(data.get("permissions", []))
+        if staff_id:
+            self.cur.execute(
+                "UPDATE staff_roles SET name=%s,email=%s,role=%s,status=%s,permissions=%s WHERE id=%s",
+                (data.get("name"), data.get("email"), data.get("role"), data.get("status", "Active"), permissions, str(staff_id).replace("STF-", "")),
+            )
+        else:
+            self.cur.execute(
+                "INSERT INTO staff_roles(name,email,role,status,permissions) VALUES(%s,%s,%s,%s,%s)",
+                (data.get("name"), data.get("email"), data.get("role"), data.get("status", "Active"), permissions),
+            )
+        self.conn.commit()
+        return self.fetch_staff()[0]
+
+    def log_activity(self, actor, action, target=""):
+        self.cur.execute(
+            "INSERT INTO activity_logs(actor, action, target) VALUES(%s, %s, %s)",
+            (actor or "Staff", action, target),
+        )
+        self.conn.commit()
+        return True
+
+    def fetch_activity_logs(self, limit=50):
+        rows = self._query_all("SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT %s", (int(limit),))
+        return [{
+            "id": f"LOG-{row['id']}",
+            "actor": row["actor"],
+            "action": row["action"],
+            "target": row.get("target") or "",
+            "time": row["created_at"],
+        } for row in rows]
 
     def Add_new_user(self, data):
         try:
@@ -54,21 +559,22 @@ class controller:
         except Exception as e:
             print(e)
             return None
-    def fetch_user_by_token(self, token):
+    def fetch_user_by_token(self, table_name, token):
             try:
-                sel_query = "SELECT * FROM organization_admins WHERE reset_token = %s"
+                sel_query = f"SELECT * FROM {table_name} WHERE reset_token = %s"
                 self.cur.execute(sel_query, (token,))
                 result = self.cur.fetchone()
                 return result
             except Exception as e:
                 print(e)
                 return None
-    def set_password(self, hash_pass, id):
+
+    def set_password(self,table_name, hash_pass, id):
         try:
-            upd_query = """
-                UPDATE organization_admins
+            upd_query = f"""
+                UPDATE {table_name}
                 SET hashed_password = %s, reset_token = NULL, token_expiry = NULL
-                WHERE admin_id = %s
+                WHERE id = %s
             """
             self.cur.execute(upd_query, (hash_pass, id))
             self.conn.commit()
@@ -78,6 +584,21 @@ class controller:
             print(e)
             self.conn.rollback()
             return False
+    def changes_status(self, table_name, status, id):
+        try:
+            updete_st_query=f"""
+                UPDATE {table_name}
+                SET status = %s
+                WHERE id = %s
+            """
+            self.cur.execute(updete_st_query, (status, id))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
+            return False
+
     def fetch_dashboard_stats(self):
         try:
             # Overall counts + average GPA in one query
@@ -177,19 +698,33 @@ class controller:
                 UPDATE students 
                 SET firstName=%s, lastName=%s, email=%s, phone =%s, dob=%s, gender=%s, address=%s, year=%s, gpa=%s, status=%s, notes=%s, course_id=%s
                 WHERE id=%s  """
-            self.cur.execute(update_query, (data['firstName'], data['lastName'], data['email'], data['phone'], data['dob'], data['gender'], data['address'], data['year'], data['gpa'], data['status'], data['notes'], data['course_id'], student_id))
+            self.cur.execute(update_query, (
+                data.get('firstName'), data.get('lastName'), data.get('email'),
+                data.get('phone'), data.get('dob'), data.get('gender'),
+                data.get('address'), data.get('year'), data.get('gpa'),
+                data.get('status', 'Active'), data.get('notes'),
+                data.get('course_id') or data.get('courseId'), student_id,
+            ))
             self.conn.commit()
             return jsonify({"message": f"Student {student_id} updated successfully"}), 200
         except Exception as e:
+            print(e)
             return jsonify({"error": "Failed to update student"}), 500
 
     def Add_new_student(self, data):
         try:
             ins_query = "INSERT INTO students (firstName, lastName, email, phone, dob, gender, address,year, gpa, status, notes,course_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-            self.cur.execute(ins_query, (data['firstName'], data['lastName'], data['email'], data['phone'], data['dob'], data['gender'], data['address'], data['year'], data['gpa'], data['status'], data['notes'], data['course_id']))
+            self.cur.execute(ins_query, (
+                data.get('firstName'), data.get('lastName'), data.get('email'),
+                data.get('phone'), data.get('dob'), data.get('gender'),
+                data.get('address'), data.get('year'), data.get('gpa'),
+                data.get('status', 'Active'), data.get('notes'),
+                data.get('course_id') or data.get('courseId'),
+            ))
             self.conn.commit()
-            return jsonify({"message": "Student added successfully"}), 201
+            return jsonify({"message": "Student added successfully", "id": self.cur.lastrowid}), 201
         except Exception as e:
+            print(e)
             return jsonify({"error": "Failed to add student"}), 500
 
     def Delete_student(self, student_id):

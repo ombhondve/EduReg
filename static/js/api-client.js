@@ -213,10 +213,19 @@ const NotificationApi = {
 // Point these at whatever routes your backend exposes for auth.
 // Expected login/signup response shape: { id, name, email, role, token }
 const AuthApi = {
+  // Used by login.js (college/student login page)
   login(email, password, role) {
     return requestApi('/auth/login', {
       method: 'POST',
       body: JSON.stringify(role ? { email, password, role } : { email, password }),
+    });
+  },
+
+  // Used by auth.js (admin login page)
+  adminLogin(email, password) {
+    return requestApi('/auth/admin_login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
     });
   },
 

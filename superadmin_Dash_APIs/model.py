@@ -38,8 +38,8 @@ class superadmin_models(controller):
                     COALESCE(p.status, 'Pending Setup')  AS status,
                 
                     COALESCE(p.max_students, 0)          AS maxStudents,
-                    0                                    AS students,
-                   
+                    COALESCE(st.student_count, 0)        AS students,
+
                     COALESCE(p.max_staff, 0)              AS maxStaff,
                     1                                    AS staff,
                     COALESCE(p.storage_gb, 0)             AS storageGb,
@@ -51,6 +51,11 @@ class superadmin_models(controller):
                 FROM organizations o
                 LEFT JOIN organization_plans  p ON p.organization_id = o.organization_id
                 LEFT JOIN organization_admins a ON a.organization_id = o.organization_id
+                LEFT JOIN (
+                    SELECT organization_id, COUNT(*) AS student_count
+                    FROM students
+                    GROUP BY organization_id
+                ) st ON st.organization_id = o.organization_id
                 WHERE 1=1
             """
             values = []
@@ -262,8 +267,23 @@ class superadmin_models(controller):
             )
             by_status = {row['status']: row['c'] for row in self.cur.fetchall()}
 
+            # "Trial" is a plan, not a status (status is Active/Inactive/Suspended/
+            # Pending Setup), so it must be counted from organization_plans.plan —
+            # counting it via `status` above always returned 0.
             self.cur.execute(
-                "SELECT COALESCE(SUM(max_students),0) AS s, COALESCE(SUM(max_staff),0) AS t FROM organization_plans"
+                """
+                SELECT COUNT(*) AS c FROM organizations o
+                LEFT JOIN organization_plans p ON p.organization_id = o.organization_id
+                WHERE COALESCE(p.plan, 'trial') = 'trial'
+                """
+            )
+            trial_schools = self.cur.fetchone()['c']
+
+            self.cur.execute("SELECT COUNT(*) AS c FROM students")
+            total_students = self.cur.fetchone()['c']
+
+            self.cur.execute(
+                "SELECT COALESCE(SUM(max_staff),0) AS t FROM organization_plans"
             )
             totals = self.cur.fetchone()
 
@@ -281,9 +301,9 @@ class superadmin_models(controller):
             return {
                 "totalSchools": int(total_schools or 0),
                 "activeSchools": int(by_status.get('Active', 0) or 0),
-                "trialSchools": int(by_status.get('Trial', 0) or 0),
+                "trialSchools": int(trial_schools or 0),
                 "suspendedSchools": int(by_status.get('Suspended', 0) or 0),
-                "totalStudents": int(totals['s'] or 0),
+                "totalStudents": int(total_students or 0),
                 "totalStaff": int(totals['t'] or 0),
                 "mrr": int(mrr or 0),
                 "newThisMonth": int(new_this_month or 0),
@@ -546,12 +566,226 @@ class superadmin_models(controller):
             return None
 
     def get_feature_flags(self):
+        try:
+            self.cur.execute(
+                "SELECT flag_key AS `key`, name, description AS `desc`, enabled, scope FROM feature_flags ORDER BY name"
+            )
+            rows = self.cur.fetchall()
+            if rows:
+                for row in rows:
+                    row["enabled"] = bool(row["enabled"])
+                return rows
+        except Exception as e:
+            print(e)
+        # feature_flags table missing/empty — fall back to platform defaults.
         return [
             {"key": "exam_engine", "name": "Online Exam Engine", "desc": "Timed exams, auto-grading, question banks", "enabled": True, "scope": "All plans"},
             {"key": "certificates", "name": "Certificate Generator", "desc": "Auto-generate signed completion certificates", "enabled": True, "scope": "Pro & Enterprise"},
             {"key": "fee_module", "name": "Fee Management", "desc": "Fee structures, receipts, payment reminders", "enabled": False, "scope": "Enterprise only"},
             {"key": "alumni_network", "name": "Alumni Network", "desc": "Alumni directory and engagement tools", "enabled": False, "scope": "Beta invite only"},
         ]
+
+    def update_feature_flag(self, key, enabled):
+        try:
+            self.cur.execute(
+                "UPDATE feature_flags SET enabled=%s WHERE flag_key=%s",
+                (1 if enabled else 0, key),
+            )
+            self.conn.commit()
+            self.cur.execute(
+                "SELECT flag_key AS `key`, name, description AS `desc`, enabled, scope FROM feature_flags WHERE flag_key=%s",
+                (key,),
+            )
+            row = self.cur.fetchone()
+            if row:
+                row["enabled"] = bool(row["enabled"])
+                return row
+            return {"key": key, "enabled": bool(enabled)}
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
+            return None
+
+    # ---------------------------------------------------------------
+    # Students (cross-tenant, read-only directory synced from schools)
+    # ---------------------------------------------------------------
+
+    def get_students(self, search="", school_id="", status="", plan=""):
+        try:
+            query = """
+                SELECT
+                    st.id                AS id,
+                    st.name              AS name,
+                    st.roll_no           AS rollNo,
+                    st.organization_id   AS schoolId,
+                    o.name               AS schoolName,
+                    st.program           AS program,
+                    st.status            AS status,
+                    st.email             AS email,
+                    st.last_active       AS lastActiveRaw,
+                    st.created_at        AS enrolledRaw
+                FROM students st
+                JOIN organizations o ON o.organization_id = st.organization_id
+                LEFT JOIN organization_plans p ON p.organization_id = st.organization_id
+                WHERE 1=1
+            """
+            values = []
+            if search:
+                query += " AND (st.name LIKE %s OR st.roll_no LIKE %s OR st.email LIKE %s)"
+                values.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+            if school_id:
+                query += " AND st.organization_id = %s"
+                values.append(school_id)
+            if status:
+                query += " AND st.status = %s"
+                values.append(status)
+            if plan:
+                query += " AND p.plan = %s"
+                values.append(plan)
+            query += " ORDER BY st.created_at DESC"
+
+            self.cur.execute(query, values)
+            rows = self.cur.fetchall()
+            for row in rows:
+                row["lastActive"] = self._time_ago(row.pop("lastActiveRaw", None))
+                row["enrolled"] = self._time_ago(row.pop("enrolledRaw", None))
+            return rows
+        except Exception as e:
+            print(e)
+            return None
+
+    def get_student(self, student_id):
+        rows = self.get_students()
+        if rows is None:
+            return None
+        return next((row for row in rows if int(row["id"]) == int(student_id)), None)
+
+    # ---------------------------------------------------------------
+    # Support tickets
+    # ---------------------------------------------------------------
+
+    def get_tickets(self, status="", priority="", school_id=""):
+        try:
+            query = """
+                SELECT
+                    t.id               AS id,
+                    t.subject          AS subject,
+                    t.organization_id  AS schoolId,
+                    o.name             AS schoolName,
+                    t.priority         AS priority,
+                    t.status           AS status,
+                    t.updated_at       AS updatedAtRaw
+                FROM support_tickets t
+                JOIN organizations o ON o.organization_id = t.organization_id
+                WHERE 1=1
+            """
+            values = []
+            if status:
+                query += " AND t.status = %s"
+                values.append(status)
+            if priority:
+                query += " AND t.priority = %s"
+                values.append(priority)
+            if school_id:
+                query += " AND t.organization_id = %s"
+                values.append(school_id)
+            query += " ORDER BY t.updated_at DESC"
+
+            self.cur.execute(query, values)
+            rows = self.cur.fetchall()
+            for row in rows:
+                row["updatedAgo"] = self._time_ago(row.pop("updatedAtRaw", None))
+            return rows
+        except Exception as e:
+            print(e)
+            return None
+
+    def update_ticket_status(self, ticket_id, status):
+        try:
+            self.cur.execute(
+                "UPDATE support_tickets SET status=%s, updated_at=NOW() WHERE id=%s",
+                (status, ticket_id),
+            )
+            self.conn.commit()
+            self.cur.execute(
+                "SELECT id, subject, status FROM support_tickets WHERE id=%s", (ticket_id,)
+            )
+            return self.cur.fetchone()
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
+            return None
+
+    # ---------------------------------------------------------------
+    # Impersonation audit log
+    # ---------------------------------------------------------------
+
+    def log_impersonation(self, employee_name, school_id, reason="Support session"):
+        try:
+            self.cur.execute(
+                """
+                INSERT INTO impersonation_log (employee_name, organization_id, reason, created_at)
+                VALUES (%s, %s, %s, NOW())
+                """,
+                (employee_name, school_id, reason),
+            )
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
+            return False
+
+    def get_impersonation_log(self, limit=50):
+        try:
+            self.cur.execute(
+                """
+                SELECT l.employee_name AS admin, o.name AS schoolName, l.reason AS reason, l.created_at AS timeRaw
+                FROM impersonation_log l
+                JOIN organizations o ON o.organization_id = l.organization_id
+                ORDER BY l.created_at DESC
+                LIMIT %s
+                """,
+                (int(limit),),
+            )
+            rows = self.cur.fetchall()
+            for row in rows:
+                row["time"] = self._time_ago(row.pop("timeRaw", None))
+            return rows
+        except Exception as e:
+            print(e)
+            return []
+
+    # ---------------------------------------------------------------
+    # Notifications / broadcasts
+    # ---------------------------------------------------------------
+
+    def get_notifications(self):
+        try:
+            self.cur.execute(
+                "SELECT title, body, audience, created_at AS sentAtRaw FROM notifications ORDER BY created_at DESC"
+            )
+            rows = self.cur.fetchall()
+            for row in rows:
+                row["sentAgo"] = self._time_ago(row.pop("sentAtRaw", None))
+            return rows
+        except Exception as e:
+            print(e)
+            return []
+
+    def create_notification(self, data):
+        try:
+            audience = data.get("audience", "All schools")
+            self.cur.execute(
+                "INSERT INTO notifications (title, body, audience, created_at) VALUES (%s, %s, %s, NOW())",
+                (data.get("title"), data.get("body"), audience),
+            )
+            self.conn.commit()
+            return {"title": data.get("title"), "audience": audience, "sentAgo": "just now"}
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
+            return None
 
     def _time_ago(self, value):
         if not value:

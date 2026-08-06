@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 import os
 import json
 
+from services.tenant_provisioning import TENANT_TABLE_STATEMENTS, DEFAULT_COURSES
+
 load_dotenv(".env")
 _CORE_SCHEMA_READY = False
 pool = PooledDB(
@@ -37,158 +39,14 @@ class controller:
         self.conn.close()
 
     def ensure_core_schema(self):
+        # Table definitions live in services/tenant_provisioning.py — the
+        # same list is used to build each new college's own dedicated
+        # database (edureg_org_{organization_id}), so there's a single
+        # source of truth for the tenant schema instead of two copies that
+        # can drift apart.
         try:
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS courses (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(150) NOT NULL,
-                    course_code VARCHAR(50) NOT NULL UNIQUE,
-                    duration VARCHAR(50) DEFAULT NULL,
-                    status VARCHAR(30) NOT NULL DEFAULT 'Active'
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS students (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    firstName VARCHAR(100) NOT NULL,
-                    lastName VARCHAR(100) NOT NULL,
-                    email VARCHAR(150) NOT NULL UNIQUE,
-                    phone VARCHAR(30) DEFAULT NULL,
-                    dob DATE DEFAULT NULL,
-                    gender VARCHAR(30) DEFAULT NULL,
-                    address TEXT DEFAULT NULL,
-                    year VARCHAR(50) DEFAULT NULL,
-                    gpa DECIMAL(4,2) DEFAULT NULL,
-                    status VARCHAR(30) NOT NULL DEFAULT 'Active',
-                    notes TEXT DEFAULT NULL,
-                    course_id INT DEFAULT NULL,
-                    hashed_password VARCHAR(255) DEFAULT NULL,
-                    reset_token VARCHAR(255) DEFAULT NULL,
-                    token_expiry DATETIME DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    CONSTRAINT fk_students_courses
-                        FOREIGN KEY (course_id) REFERENCES courses(id)
-                        ON UPDATE CASCADE
-                        ON DELETE SET NULL
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS documents (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    student_id INT NOT NULL,
-                    doc_type VARCHAR(100) NOT NULL,
-                    file_name VARCHAR(255) NOT NULL,
-                    file_path VARCHAR(500) DEFAULT NULL,
-                    mime_type VARCHAR(120) DEFAULT NULL,
-                    size_bytes INT DEFAULT 0,
-                    status VARCHAR(40) NOT NULL DEFAULT 'Pending Review',
-                    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    reviewed_by VARCHAR(120) DEFAULT NULL,
-                    reviewed_at DATETIME DEFAULT NULL,
-                    review_note TEXT DEFAULT NULL,
-                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS notifications (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    title VARCHAR(200) NOT NULL,
-                    message TEXT,
-                    type VARCHAR(40) DEFAULT 'general',
-                    audience VARCHAR(40) DEFAULT 'all',
-                    audience_value VARCHAR(150) DEFAULT NULL,
-                    student_id INT DEFAULT NULL,
-                    recipient_count INT DEFAULT 0,
-                    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS attendance_records (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    course VARCHAR(150) NOT NULL,
-                    record_date DATE NOT NULL,
-                    present INT NOT NULL DEFAULT 0,
-                    absent INT NOT NULL DEFAULT 0,
-                    late INT NOT NULL DEFAULT 0,
-                    present_pct INT NOT NULL DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS fee_records (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    student_id INT DEFAULT NULL,
-                    student_name VARCHAR(200) NOT NULL,
-                    fee_type VARCHAR(80) NOT NULL,
-                    amount DECIMAL(12,2) NOT NULL DEFAULT 0,
-                    status VARCHAR(40) NOT NULL DEFAULT 'Pending',
-                    due_date DATE DEFAULT NULL,
-                    notes TEXT DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS timetable_entries (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    course VARCHAR(150) NOT NULL,
-                    day VARCHAR(20) NOT NULL,
-                    start_time TIME NOT NULL,
-                    end_time TIME NOT NULL,
-                    subject VARCHAR(150) NOT NULL,
-                    room VARCHAR(80) DEFAULT NULL,
-                    faculty VARCHAR(120) DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS calendar_events (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    title VARCHAR(200) NOT NULL,
-                    event_date DATE NOT NULL,
-                    category VARCHAR(50) NOT NULL DEFAULT 'Event',
-                    description TEXT DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS messages (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    student_id INT DEFAULT NULL,
-                    student_name VARCHAR(200) NOT NULL,
-                    sender VARCHAR(30) NOT NULL,
-                    body TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS staff_roles (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    name VARCHAR(150) NOT NULL,
-                    email VARCHAR(150) NOT NULL UNIQUE,
-                    role VARCHAR(80) NOT NULL DEFAULT 'Staff',
-                    status VARCHAR(40) NOT NULL DEFAULT 'Active',
-                    permissions JSON,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS activity_logs (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    actor VARCHAR(150) NOT NULL,
-                    action VARCHAR(150) NOT NULL,
-                    target VARCHAR(255) DEFAULT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.cur.execute("""
-                CREATE TABLE IF NOT EXISTS app_settings (
-                    setting_key VARCHAR(80) PRIMARY KEY,
-                    setting_value TEXT
-                )
-            """)
+            for statement in TENANT_TABLE_STATEMENTS:
+                self.cur.execute(statement)
             self.cur.execute("SELECT COUNT(*) AS total FROM courses")
             if (self.cur.fetchone() or {}).get("total", 0) == 0:
                 self.cur.executemany(
@@ -196,13 +54,7 @@ class controller:
                     INSERT INTO courses (name, course_code, duration, status)
                     VALUES (%s, %s, %s, %s)
                     """,
-                    [
-                        ("Computer Science Engineering", "CSE", "4 years", "Active"),
-                        ("Mechanical Engineering", "ME", "4 years", "Active"),
-                        ("Civil Engineering", "CE", "4 years", "Active"),
-                        ("Electrical Engineering", "EE", "4 years", "Active"),
-                        ("Business Administration", "BBA", "3 years", "Active"),
-                    ],
+                    DEFAULT_COURSES,
                 )
             self.conn.commit()
         except Exception as e:

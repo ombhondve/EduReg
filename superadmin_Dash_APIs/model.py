@@ -2,6 +2,7 @@ import re, json
 from datetime import datetime
 from flask import jsonify
 from shared.model import controller
+from services.tenant_provisioning import create_tenant_database
 
 # Static price-per-plan used only to compute MRR for the dashboard.
 # Adjust to your real pricing — this is not stored anywhere in the DB.
@@ -207,7 +208,20 @@ class superadmin_models(controller):
             self.conn.rollback()
             return None
 
-    def add_school_org(self, data, DB_name):
+    def add_school_org(self, data):
+        """Create a new college/organization AND provision its own isolated
+        database (edureg_org_{organization_id}) with every required table.
+
+        The organization_id (and therefore the database name) only exists
+        once the `organizations` row is inserted, so the database name is
+        never guessed from the college's name — it's always derived from
+        the real auto-increment id after that row is committed.
+
+        If tenant-database provisioning fails, the just-created
+        organization/admin/plan rows are deleted again so we never leave a
+        college "half onboarded" (visible in the schools list but with no
+        working database behind it).
+        """
         try:
             ins_query_org = """
                 INSERT INTO organizations(name, subdomain, type, website, address, city, country, timezone, notes)
@@ -241,14 +255,33 @@ class superadmin_models(controller):
             ))
 
             self.conn.commit()
-            #self.create_resources(organization_id)
-            return True
-            #return jsonify({"message": "School organization added successfully", "id": organization_id}), 201
 
         except Exception as e:
             print(e)
             self.conn.rollback()
             return jsonify({"error": "Failed to add school organization"}), 500
+
+        # Organization row is committed and durable at this point, so we
+        # know the real organization_id. Now provision that college's own
+        # database + tables.
+        try:
+            db_name = create_tenant_database(organization_id)
+            data['db_name'] = db_name
+            return True
+
+        except Exception as e:
+            print(f"Failed to provision tenant database for organization {organization_id}: {e}")
+            # Don't leave a college listed with no working database behind
+            # it — undo the rows we just committed.
+            try:
+                self.cur.execute("DELETE FROM organization_plans WHERE organization_id=%s", (organization_id,))
+                self.cur.execute("DELETE FROM organization_admins WHERE organization_id=%s", (organization_id,))
+                self.cur.execute("DELETE FROM organizations WHERE organization_id=%s", (organization_id,))
+                self.conn.commit()
+            except Exception as cleanup_error:
+                print(f"Failed to clean up organization {organization_id} after provisioning failure: {cleanup_error}")
+                self.conn.rollback()
+            return jsonify({"error": "Failed to provision database for school organization"}), 500
 
     
     

@@ -112,6 +112,10 @@ def impersonate_school(school_id):
     school = get_superadmin_db().get_school(school_id)
     if not school:
         return jsonify({"error": "School not found"}), 404
+    data = request.get_json(silent=True) or {}
+    admin_name = data.get("adminName", "Employee")
+    reason = data.get("reason", "Support session")
+    get_superadmin_db().log_impersonation(admin_name, school_id, reason)
     return jsonify({
         "message": "Impersonation session prepared",
         "schoolId": school_id,
@@ -249,11 +253,22 @@ def resend_employee_invite(employee_id):
 
 @superadmin_bp.route("/superadmin/students", methods=["GET"])
 def retrieve_cross_school_students():
-    return jsonify([]), 200
+    data = get_superadmin_db().get_students(
+        request.args.get("search", ""),
+        request.args.get("school_id", ""),
+        request.args.get("status", ""),
+        request.args.get("plan", ""),
+    )
+    if data is None:
+        return jsonify({"error": "Failed to fetch students"}), 500
+    return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/students/<int:student_id>", methods=["GET"])
 def retrieve_cross_school_student(student_id):
-    return jsonify({"error": "Student sync tables are not configured yet"}), 404
+    student = get_superadmin_db().get_student(student_id)
+    if not student:
+        return jsonify({"error": "Student not found"}), 404
+    return jsonify(student), 200
 
 @superadmin_bp.route("/superadmin/onboarding", methods=["GET"])
 def retrieve_onboarding():
@@ -280,16 +295,27 @@ def retrieve_revenue():
 
 @superadmin_bp.route("/superadmin/tickets", methods=["GET"])
 def retrieve_tickets():
-    return jsonify([]), 200
+    data = get_superadmin_db().get_tickets(
+        request.args.get("status", ""),
+        request.args.get("priority", ""),
+        request.args.get("school_id", ""),
+    )
+    if data is None:
+        return jsonify({"error": "Failed to fetch tickets"}), 500
+    return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/tickets/<int:ticket_id>", methods=["PUT"])
 def update_ticket(ticket_id):
     status = (request.get_json(silent=True) or {}).get("status", "pending")
-    return jsonify({"id": ticket_id, "status": status}), 200
+    updated = get_superadmin_db().update_ticket_status(ticket_id, status)
+    if not updated:
+        return jsonify({"error": "Failed to update ticket"}), 500
+    return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/impersonation-log", methods=["GET"])
 def retrieve_impersonation_log():
-    return jsonify([]), 200
+    limit = request.args.get("limit", 50)
+    return jsonify(get_superadmin_db().get_impersonation_log(limit)), 200
 
 @superadmin_bp.route("/superadmin/activity-log", methods=["GET"])
 def retrieve_activity_log():
@@ -298,14 +324,16 @@ def retrieve_activity_log():
 
 @superadmin_bp.route("/superadmin/notifications", methods=["GET", "POST"])
 def superadmin_notifications():
+    obj_sup = get_superadmin_db()
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
-        return jsonify({
-            "title": data.get("title"),
-            "audience": data.get("audience", "All schools"),
-            "sentAgo": "just now",
-        }), 201
-    return jsonify([]), 200
+        if not data.get("title"):
+            return jsonify({"error": "Title is required"}), 400
+        created = obj_sup.create_notification(data)
+        if not created:
+            return jsonify({"error": "Failed to send notification"}), 500
+        return jsonify(created), 201
+    return jsonify(obj_sup.get_notifications()), 200
 
 @superadmin_bp.route("/superadmin/feature-flags", methods=["GET"])
 def retrieve_feature_flags():
@@ -314,7 +342,10 @@ def retrieve_feature_flags():
 @superadmin_bp.route("/superadmin/feature-flags/<key>", methods=["PUT"])
 def update_feature_flag(key):
     data = request.get_json(silent=True) or {}
-    return jsonify({"key": key, "enabled": bool(data.get("enabled"))}), 200
+    updated = get_superadmin_db().update_feature_flag(key, bool(data.get("enabled")))
+    if not updated:
+        return jsonify({"error": "Failed to update feature flag"}), 500
+    return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/api-usage", methods=["GET"])
 def retrieve_api_usage():

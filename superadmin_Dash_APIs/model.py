@@ -18,9 +18,174 @@ PLAN_PRICES = {
 _SAFE_IDENT = re.compile(r'^[A-Za-z0-9_]+$')
 
 
+# ---------------------------------------------------------------------
+# Master-database schema: the cross-tenant / superadmin-only tables.
+#
+# BUG FIX: none of these tables were ever created anywhere. `controller`
+# (shared/model.py) only bootstraps TENANT_TABLE_STATEMENTS — the per-college
+# tables (courses, students, documents, ...) — against the master database,
+# which is meant for the legacy single-tenant "college portal" and does NOT
+# include organizations/organization_admins/organization_plans/employees/
+# support_tickets/impersonation_log/feature_flags. Every superadmin query
+# that touched those tables was failing with a DB error (table doesn't
+# exist), which model.py already converts into a 500 via its except blocks.
+#
+# Also note: get_students()/get_student() below intentionally query
+# `student_directory`, NOT `students`. The master DB's `students` table is
+# the *tenant-shaped* one created by ensure_core_schema (firstName/lastName/
+# course_id/...), completely different from the cross-tenant directory shape
+# this blueprint needs (organization_id/rollNo/name/program/lastActive). Two
+# tables with different schemas can't share one name — `student_directory`
+# is the "cross-tenant, read-only directory synced from schools" table the
+# original comment above get_students() already described.
+# ---------------------------------------------------------------------
+
+MASTER_TABLE_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS organizations (
+        organization_id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(200) NOT NULL,
+        subdomain VARCHAR(100) NOT NULL UNIQUE,
+        type VARCHAR(60) DEFAULT NULL,
+        website VARCHAR(255) DEFAULT NULL,
+        address VARCHAR(255) DEFAULT NULL,
+        city VARCHAR(120) DEFAULT NULL,
+        country VARCHAR(120) DEFAULT NULL,
+        timezone VARCHAR(80) DEFAULT NULL,
+        notes TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS organization_admins (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        organization_id INT NOT NULL,
+        admin_name VARCHAR(150) DEFAULT NULL,
+        admin_title VARCHAR(120) DEFAULT NULL,
+        admin_email VARCHAR(150) NOT NULL,
+        admin_phone VARCHAR(30) DEFAULT NULL,
+        hashed_password VARCHAR(255) DEFAULT NULL,
+        reset_token VARCHAR(255) DEFAULT NULL,
+        token_expiry DATETIME DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS organization_plans (
+        organization_id INT PRIMARY KEY,
+        plan VARCHAR(40) NOT NULL DEFAULT 'trial',
+        billing_cycle VARCHAR(40) NOT NULL DEFAULT 'Monthly',
+        max_students INT NOT NULL DEFAULT 0,
+        max_staff INT NOT NULL DEFAULT 0,
+        storage_gb INT NOT NULL DEFAULT 0,
+        status VARCHAR(40) NOT NULL DEFAULT 'Active',
+        notes TEXT DEFAULT NULL,
+        FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS employees (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_id VARCHAR(20) DEFAULT NULL UNIQUE,
+        name VARCHAR(150) NOT NULL,
+        email VARCHAR(150) NOT NULL UNIQUE,
+        roles JSON DEFAULT NULL,
+        pages JSON DEFAULT NULL,
+        phone VARCHAR(30) DEFAULT NULL,
+        designation VARCHAR(120) DEFAULT NULL,
+        department VARCHAR(80) DEFAULT NULL,
+        employment_type VARCHAR(40) DEFAULT NULL,
+        status VARCHAR(40) NOT NULL DEFAULT 'Invited',
+        notes TEXT DEFAULT NULL,
+        hashed_password VARCHAR(255) DEFAULT NULL,
+        reset_token VARCHAR(255) DEFAULT NULL,
+        token_expiry DATETIME DEFAULT NULL,
+        invited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        joined_at DATETIME DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS support_tickets (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        organization_id INT NOT NULL,
+        subject VARCHAR(255) NOT NULL,
+        priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+        status VARCHAR(20) NOT NULL DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS impersonation_log (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        employee_name VARCHAR(150) DEFAULT NULL,
+        organization_id INT NOT NULL,
+        reason VARCHAR(255) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS feature_flags (
+        flag_key VARCHAR(60) PRIMARY KEY,
+        name VARCHAR(150) NOT NULL,
+        description VARCHAR(255) DEFAULT NULL,
+        enabled TINYINT(1) NOT NULL DEFAULT 0,
+        scope VARCHAR(100) DEFAULT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS student_directory (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        organization_id INT NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        roll_no VARCHAR(60) DEFAULT NULL,
+        program VARCHAR(150) DEFAULT NULL,
+        status VARCHAR(40) NOT NULL DEFAULT 'Active',
+        email VARCHAR(150) DEFAULT NULL,
+        last_active DATETIME DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE
+    )
+    """,
+]
+
+# Same defaults get_feature_flags() already falls back to, seeded once so
+# the Platform Settings page has real (editable) rows instead of only ever
+# showing the hardcoded fallback.
+_DEFAULT_FEATURE_FLAGS = [
+    ('exam_engine', 'Online Exam Engine', 'Timed exams, auto-grading, question banks', 1, 'All plans'),
+    ('certificates', 'Certificate Generator', 'Auto-generate signed completion certificates', 1, 'Pro & Enterprise'),
+    ('fee_module', 'Fee Management', 'Fee structures, receipts, payment reminders', 0, 'Enterprise only'),
+    ('alumni_network', 'Alumni Network', 'Alumni directory and engagement tools', 0, 'Beta invite only'),
+]
+
+
 class superadmin_models(controller):
     def __init__(self):
         super().__init__()
+        self._ensure_master_schema()
+
+    def _ensure_master_schema(self):
+        try:
+            for statement in MASTER_TABLE_STATEMENTS:
+                self.cur.execute(statement)
+            self.cur.execute("SELECT COUNT(*) AS total FROM feature_flags")
+            if (self.cur.fetchone() or {}).get("total", 0) == 0:
+                self.cur.executemany(
+                    """
+                    INSERT INTO feature_flags (flag_key, name, description, enabled, scope)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    _DEFAULT_FEATURE_FLAGS,
+                )
+            self.conn.commit()
+        except Exception as e:
+            print(f"Error ensuring master (superadmin) schema: {e}")
+            self.conn.rollback()
 
     # ---------------------------------------------------------------
     # Schools (list / detail / create / update / suspend / delete)

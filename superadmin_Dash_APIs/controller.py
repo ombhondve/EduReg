@@ -61,14 +61,22 @@ def add_school():
     if missing:
         return jsonify({"error": f"Missing required field(s): {', '.join(missing)}"}), 400
 
-    DB_name = data['name'].replace(" ", "_")
     data['reset_token'] = secrets.token_urlsafe(64)
     data['token_expiry'] = (datetime.now() + timedelta(minutes=30))
 
-    status = obj_sup.add_school_org(data, DB_name)
+    # add_school_org creates the organization row AND provisions that
+    # college's own dedicated database (edureg_org_{organization_id}) with
+    # every required table. The database name is derived from the real
+    # organization_id assigned on insert, not guessed from the school name.
+    status = obj_sup.add_school_org(data)
     if status is True:
         mail_sent = sending_mail_set_pass(data.get('adminEmail'), data.get('adminName'), data.get('reset_token'))
-        return jsonify({"message": "School added successfully", "mail_sent": mail_sent}), 201
+        return jsonify({
+            "message": "School added successfully",
+            "mail_sent": mail_sent,
+            "organizationId": data.get('organization_id'),
+            "dbName": data.get('db_name'),
+        }), 201
     else:
         return jsonify({"error": "Failed to add school organization"}), 500
 

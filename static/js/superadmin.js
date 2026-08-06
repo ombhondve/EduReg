@@ -103,6 +103,15 @@ async function apiOrDemo(apiCall, demoValue) {
     return demoValue;
   }
 }
+function escapeHtmlAttr(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -154,9 +163,9 @@ function paginationHtml(page, totalPages, total, onGoto) {
   return `<div class="pagination">
     <span>${total} total</span>
     <div class="pagination-controls">
-      <button class="pagination-btn" ${page <= 1 ? 'disabled' : ''} onclick="${onGoto}(${page - 1})">Prev</button>
+      <button class="pagination-btn" ${page <= 1 ? 'disabled' : ''} data-action="paginate" data-fn="${onGoto}" data-page="${page - 1}">Prev</button>
       <span class="pagination-btn active">${page} / ${totalPages}</span>
-      <button class="pagination-btn" ${page >= totalPages ? 'disabled' : ''} onclick="${onGoto}(${page + 1})">Next</button>
+      <button class="pagination-btn" ${page >= totalPages ? 'disabled' : ''} data-action="paginate" data-fn="${onGoto}" data-page="${page + 1}">Next</button>
     </div>
   </div>`;
 }
@@ -186,8 +195,9 @@ function navigateSA(page) {
     logs: ['Activity log', 'Platform-wide actions'],
     settings: ['Platform settings', 'Global configuration'],
   };
-  document.getElementById('saPageTitle').textContent = titles[page][0];
-  document.getElementById('saPageSubtitle').textContent = titles[page][1];
+  const pageTitle = titles[page] || titles[DEFAULT_LANDING_PAGE];
+  document.getElementById('saPageTitle').textContent = pageTitle[0];
+  document.getElementById('saPageSubtitle').textContent = pageTitle[1];
   const role = getCurrentEmployeeRoles();
   const canAddSchool = canDo(role, 'school.create') && (page === 'schools' || page === 'overview');
   const canAddEmployee = canDo(role, 'employee.create') && page === 'employees';
@@ -247,7 +257,7 @@ async function renderOverview() {
     <div class="card fade-in">
       <div class="card-header">
         <span class="card-title">Recently onboarded schools</span>
-        <button class="btn btn-secondary btn-sm" onclick="navigateSA('schools')">View all</button>
+        <button class="btn btn-secondary btn-sm" data-action="navigate" data-page="schools">View all</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -274,16 +284,16 @@ async function renderSchools(preserveFilters) {
     <div class="toolbar fade-in">
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="schoolSearchInput" placeholder="Search schools..." value="${searchVal || ''}" oninput="filterSchools()">
+        <input type="text" id="schoolSearchInput" placeholder="Search schools..." value="${searchVal || ''}" data-action="filter-schools">
       </div>
-      <select id="planFilter" onchange="filterSchools()">
+      <select id="planFilter" data-action="filter-schools">
         <option value="">All plans</option>
         <option value="trial" ${planVal === 'trial' ? 'selected' : ''}>Trial</option>
         <option value="basic" ${planVal === 'basic' ? 'selected' : ''}>Basic</option>
         <option value="pro" ${planVal === 'pro' ? 'selected' : ''}>Pro</option>
         <option value="enterprise" ${planVal === 'enterprise' ? 'selected' : ''}>Enterprise</option>
       </select>
-      <select id="statusFilter" onchange="filterSchools()">
+      <select id="statusFilter" data-action="filter-schools">
         <option value="">All status</option>
         <option ${statusVal === 'Active' ? 'selected' : ''}>Active</option>
         <option ${statusVal === 'Trial' ? 'selected' : ''}>Trial</option>
@@ -338,12 +348,12 @@ function schoolRow(s) {
     <td><span class="status status-${s.status.toLowerCase()}"><span class="status-dot"></span>${s.status}</span></td>
     <td style="color:var(--text3);font-size:0.8rem">${s.createdAt}</td>
     <td>
-      <button class="btn-icon" title="View" onclick="viewSchool(${s.id})">
+      <button class="btn-icon" title="View" data-action="view-school" data-id="${s.id}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
       ${canDo(getCurrentEmployeeRoles(), 'school.suspend') ? (s.status === 'Suspended'
-        ? `<button class="btn-icon" title="Activate" onclick="askConfirmSA(${s.id},'activate')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>`
-        : `<button class="btn-icon" title="Suspend" onclick="askConfirmSA(${s.id},'suspend')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`) : ''}
+        ? `<button class="btn-icon" title="Activate" data-action="confirm-school" data-id="${s.id}" data-status="activate"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>`
+        : `<button class="btn-icon" title="Suspend" data-action="confirm-school" data-id="${s.id}" data-status="suspend"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`) : ''}
     </td>
   </tr>`;
 }
@@ -386,9 +396,9 @@ async function renderEmployees(preserveFilters) {
     <div class="toolbar fade-in">
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="employeeSearchInput" placeholder="Search by name, email, or employee ID..." value="${searchVal || ''}" oninput="filterEmployees()">
+        <input type="text" id="employeeSearchInput" placeholder="Search by name, email, or employee ID..." value="${searchVal || ''}" data-action="filter-employees">
       </div>
-      <select id="employeeDeptFilter" onchange="filterEmployees()">
+      <select id="employeeDeptFilter" data-action="filter-employees">
         <option value="">All departments</option>
         <option ${deptVal === 'Engineering' ? 'selected' : ''}>Engineering</option>
         <option ${deptVal === 'Support' ? 'selected' : ''}>Support</option>
@@ -397,7 +407,7 @@ async function renderEmployees(preserveFilters) {
         <option ${deptVal === 'Finance' ? 'selected' : ''}>Finance</option>
         <option ${deptVal === 'HR' ? 'selected' : ''}>HR</option>
       </select>
-      <select id="employeeStatusFilter" onchange="filterEmployees()">
+      <select id="employeeStatusFilter" data-action="filter-employees">
         <option value="">All status</option>
         <option ${statusVal === 'Active' ? 'selected' : ''}>Active</option>
         <option ${statusVal === 'Invited' ? 'selected' : ''}>Invited</option>
@@ -439,7 +449,7 @@ function employeeRow(e) {
   const initials = e.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const statusClass = e.status === 'Active' ? 'status-active' : e.status === 'Suspended' ? 'status-suspended' : 'status-pending';
   return `<tr>
-    <td><div class="employee-info" style="cursor:pointer" onclick="viewEmployee(${e.id})">
+    <td><div class="employee-info" style="cursor:pointer" data-action="view-employee" data-id="${e.id}">
       <div class="employee-avatar">${initials}</div>
       <div><div class="employee-name">${e.name}</div><div class="employee-sub">${e.email}${e.employeeId ? ' · ' + e.employeeId : ''}</div></div>
     </div></td>
@@ -448,17 +458,17 @@ function employeeRow(e) {
     <td><span class="status ${statusClass}"><span class="status-dot"></span>${e.status}</span></td>
     <td style="color:var(--text3);font-size:0.8rem">${e.status === 'Invited' ? 'Invited ' + timeAgo(e.invited_at) : (e.joined_at || '—')}</td>
     <td>
-      <button class="btn-icon" title="View" onclick="viewEmployee(${e.id})">
+      <button class="btn-icon" title="View" data-action="view-employee" data-id="${e.id}">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
       ${(() => {
         const role = getCurrentEmployeeRoles();
         if (e.status === 'Invited') return canDo(role, 'employee.resendInvite')
-          ? `<button class="btn-icon" title="Resend invite" onclick="resendEmployeeInvite(${e.id})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>` : '';
+          ? `<button class="btn-icon" title="Resend invite" data-action="resend-employee-invite" data-id="${e.id}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg></button>` : '';
         if (!canDo(role, 'employee.suspend')) return '';
         return e.status === 'Suspended'
-          ? `<button class="btn-icon" title="Activate" onclick="askConfirmSA(${e.id},'activate','employee')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>`
-          : `<button class="btn-icon" title="Suspend" onclick="askConfirmSA(${e.id},'suspend','employee')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`;
+          ? `<button class="btn-icon" title="Activate" data-action="confirm-employee" data-id="${e.id}" data-status="activate"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></button>`
+          : `<button class="btn-icon" title="Suspend" data-action="confirm-employee" data-id="${e.id}" data-status="suspend"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg></button>`;
       })()}
     </td>
   </tr>`;
@@ -580,13 +590,13 @@ async function viewEmployee(id) {
         ${(() => {
           const role = getCurrentEmployeeRoles();
           if (employee.status === 'Invited') return canDo(role, 'employee.resendInvite')
-            ? `<button class="btn btn-secondary" style="flex:1" onclick="resendEmployeeInvite(${employee.id})">Resend invite</button>` : '';
+            ? `<button class="btn btn-secondary" style="flex:1" data-action="resend-employee-invite" data-id="${employee.id}">Resend invite</button>` : '';
           if (!canDo(role, 'employee.suspend')) return '';
           return employee.status === 'Suspended'
-            ? `<button class="btn btn-secondary" style="flex:1" onclick="askConfirmSA(${employee.id},'activate','employee')">Restore access</button>`
-            : `<button class="btn btn-secondary" style="flex:1" onclick="askConfirmSA(${employee.id},'suspend','employee')">Suspend access</button>`;
+            ? `<button class="btn btn-secondary" style="flex:1" data-action="confirm-employee" data-id="${employee.id}" data-status="activate">Restore access</button>`
+            : `<button class="btn btn-secondary" style="flex:1" data-action="confirm-employee" data-id="${employee.id}" data-status="suspend">Suspend access</button>`;
         })()}
-        <button class="btn btn-primary" style="flex:1" onclick="closeOverlaySA('entityDetailModal')">Close</button>
+        <button class="btn btn-primary" style="flex:1" data-action="close-overlay" data-target="entityDetailModal">Close</button>
       </div>
     </div>`;
   document.getElementById('entityDetailModal').classList.add('show');
@@ -626,13 +636,13 @@ async function renderStudents() {
     <div class="toolbar fade-in">
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="studentSearchInput" placeholder="Search by name, roll no., or email..." oninput="debouncedFilterStudents()">
+        <input type="text" id="studentSearchInput" placeholder="Search by name, roll no., or email..." data-action="filter-students-debounced">
       </div>
-      <select id="studentSchoolFilter" onchange="filterStudentsNow()">
+      <select id="studentSchoolFilter" data-action="filter-students">
         <option value="">All schools</option>
         ${schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
       </select>
-      <select id="studentStatusFilter" onchange="filterStudentsNow()">
+      <select id="studentStatusFilter" data-action="filter-students">
         <option value="">All statuses</option>
         <option>Active</option><option>Inactive</option><option>Flagged</option>
       </select>
@@ -680,7 +690,7 @@ function gotoStudentsPage(p) { _studentsPage = p; renderStudentsTable(); }
 function studentRow(s) {
   const initials = s.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
   const statusClass = s.status === 'Active' ? 'status-active' : s.status === 'Flagged' ? 'status-suspended' : 'status-pending';
-  return `<tr class="row" onclick="viewStudent(${s.id})" style="cursor:pointer">
+  return `<tr class="row" data-action="view-student" data-id="${s.id}" style="cursor:pointer">
     <td><div class="student-info"><div class="student-avatar">${initials}</div><div><div class="student-name">${s.name}</div><div class="student-sub">Roll No. ${s.rollNo}</div></div></div></td>
     <td><span class="school-tag">${s.schoolName}</span></td>
     <td>${s.program}</td>
@@ -714,8 +724,8 @@ function viewStudent(id) {
         <div class="sa-detail-row"><span>Last active</span><span>${s.lastActive}</span></div>
       </div>
       <div class="sa-detail-block" style="grid-column:1/-1;display:flex;gap:10px">
-        ${canDo(getCurrentEmployeeRoles(), 'impersonate') ? `<button class="btn btn-secondary" style="flex:1" onclick="impersonateSchool(${s.schoolId},'${s.schoolName.replace(/'/g, "\\'")}')">View as School Admin</button>` : ''}
-        <button class="btn btn-primary" style="flex:1" onclick="closeOverlaySA('entityDetailModal')">Open in School Dashboard</button>
+        ${canDo(getCurrentEmployeeRoles(), 'impersonate') ? `<button class="btn btn-secondary" style="flex:1" data-action="impersonate-school" data-id="${s.schoolId}" data-name="${escapeHtmlAttr(s.schoolName)}">View as School Admin</button>` : ''}
+        <button class="btn btn-primary" style="flex:1" data-action="close-overlay" data-target="entityDetailModal">Open in School Dashboard</button>
       </div>
     </div>`;
   document.getElementById('entityDetailModal').classList.add('show');
@@ -743,7 +753,7 @@ async function renderOnboarding() {
       const inStage = schools.filter(s => s.stage === stage);
       return `<div class="kanban-col">
         <div class="kanban-col-head"><span>${stage}</span><span class="kanban-count">${inStage.length}</span></div>
-        ${inStage.map(s => `<div class="kanban-card" onclick="viewSchool(${s.id})">
+        ${inStage.map(s => `<div class="kanban-card" data-action="view-school" data-id="${s.id}">
           <div class="kanban-card-name">${s.name}</div>
           <div class="kanban-card-sub">${s.city} · updated ${s.updatedAgo}</div>
         </div>`).join('') || '<div class="kanban-card-sub" style="padding:6px 2px">Nothing here</div>'}
@@ -760,7 +770,7 @@ async function renderAdmins() {
       <td>${s.name}</td>
       <td style="color:var(--text3)">${s.adminEmail}</td>
       <td><span class="status status-active"><span class="status-dot"></span>Accepted</span></td>
-      <td>${canDo(getCurrentEmployeeRoles(), 'school.resendInvite') ? `<button class="btn btn-secondary btn-sm" onclick="resendInvite(${s.id})">Resend invite</button>` : ''}</td>
+      <td>${canDo(getCurrentEmployeeRoles(), 'school.resendInvite') ? `<button class="btn btn-secondary btn-sm" data-action="resend-invite" data-id="${s.id}">Resend invite</button>` : ''}</td>
     </tr>`).join('')
     : `<tr><td colspan="5"><div class="empty-state">
         <div class="empty-icon">👤</div>
@@ -832,7 +842,7 @@ async function renderTickets() {
     </table></div></div>`;
 }
 function ticketRow(t) {
-  return `<tr class="row" onclick="viewTicket(${t.id})" style="cursor:pointer">
+  return `<tr class="row" data-action="view-ticket" data-id="${t.id}" style="cursor:pointer">
     <td>${t.subject}</td>
     <td style="color:var(--text3)">${t.schoolName}</td>
     <td><span class="priority-badge priority-${t.priority}">${t.priority}</span></td>
@@ -853,8 +863,8 @@ function viewTicket(id) {
       <div class="sa-detail-row"><span>Updated</span><span>${t.updatedAgo}</span></div>
     </div>
     ${canDo(getCurrentEmployeeRoles(), 'ticket.update') ? `<div style="display:flex;gap:10px;margin-top:1rem">
-      <button class="btn btn-secondary" style="flex:1" onclick="updateTicket(${t.id},'pending')">Mark pending</button>
-      <button class="btn btn-primary" style="flex:1" onclick="updateTicket(${t.id},'resolved')">Mark resolved</button>
+      <button class="btn btn-secondary" style="flex:1" data-action="update-ticket" data-id="${t.id}" data-status="pending">Mark pending</button>
+      <button class="btn btn-primary" style="flex:1" data-action="update-ticket" data-id="${t.id}" data-status="resolved">Mark resolved</button>
     </div>` : ''}`;
   document.getElementById('entityDetailModal').classList.add('show');
   document.getElementById('entityDetailModal').style.display = 'flex';
@@ -895,7 +905,7 @@ async function renderNotifications() {
         <select id="notifAudience" class="form-select" style="max-width:220px">
           <option>All schools</option><option>Trial schools</option><option>Basic plan</option><option>Pro & Enterprise</option>
         </select>
-        <button class="btn btn-primary" style="align-self:flex-start" onclick="sendNotificationNow()">Send broadcast</button>
+        <button class="btn btn-primary" style="align-self:flex-start" data-action="send-notification">Send broadcast</button>
       </div>` : ''}
     </div>
     <div class="card fade-in"><div class="card-header"><span class="card-title">Recently sent</span></div>
@@ -932,7 +942,7 @@ async function renderFeatureFlags() {
       return `<div class="flag-row">
         <div><div class="flag-name">${f.name}</div><div class="flag-desc">${f.desc} · ${f.scope}</div></div>
         <label class="toggle">
-          <input type="checkbox" ${f.enabled ? 'checked' : ''} ${canToggle ? '' : 'disabled'} onchange="toggleFlag('${f.key}', this.checked)">
+          <input type="checkbox" ${f.enabled ? 'checked' : ''} ${canToggle ? '' : 'disabled'} data-action="toggle-flag" data-key="${f.key}">
           <span class="toggle-slider"></span>
         </label>
       </div>`;
@@ -1180,7 +1190,84 @@ function showToastSA(msg, type = 'info') {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
 }
 
+// ================= CSP-safe event delegation =================
+// The page is served with `script-src 'self'` (no 'unsafe-inline'), so
+// onclick="..."/onchange="..."/oninput="..." attributes are blocked by the
+// browser. Every interactive element instead carries a `data-action`
+// (plus data-id/data-status/etc as needed) and the listeners below — which
+// are attached from this external script, so they're allowed — read those
+// attributes and call the matching function.
+function handleDelegatedAction(action, el) {
+  switch (action) {
+    case 'navigate': return navigateSA(el.dataset.page);
+    case 'logout': return handleLogoutSA();
+    case 'open-add-school': return openAddSchoolModal();
+    case 'close-school-modal': return closeSchoolModal();
+    case 'save-school': return saveSchool();
+    case 'open-add-employee': return openAddEmployeeModal();
+    case 'close-employee-modal': return closeEmployeeModal();
+    case 'save-employee': return saveEmployee();
+    case 'close-overlay': return closeOverlaySA(el.dataset.target);
+    case 'close-confirm': return closeConfirmSA();
+    case 'confirm-action': return confirmActionSA();
+    case 'preview-subdomain': return previewSubdomain();
+    case 'apply-plan-defaults': return applyPlanDefaults();
+    case 'toggle-emp-role': return onEmpRoleToggle(el);
+    case 'view-school': return viewSchool(Number(el.dataset.id));
+    case 'confirm-school': return askConfirmSA(Number(el.dataset.id), el.dataset.status);
+    case 'filter-schools': return filterSchools();
+    case 'view-employee': return viewEmployee(Number(el.dataset.id));
+    case 'confirm-employee': return askConfirmSA(Number(el.dataset.id), el.dataset.status, 'employee');
+    case 'resend-employee-invite': return resendEmployeeInvite(Number(el.dataset.id));
+    case 'filter-employees': return filterEmployees();
+    case 'filter-students-debounced': return debouncedFilterStudents();
+    case 'filter-students': return filterStudentsNow();
+    case 'view-student': return viewStudent(Number(el.dataset.id));
+    case 'impersonate-school': return impersonateSchool(Number(el.dataset.id), el.dataset.name);
+    case 'view-ticket': return viewTicket(Number(el.dataset.id));
+    case 'update-ticket': return updateTicket(Number(el.dataset.id), el.dataset.status);
+    case 'send-notification': return sendNotificationNow();
+    case 'toggle-flag': return toggleFlag(el.dataset.key, el.checked);
+    case 'resend-invite': return resendInvite(Number(el.dataset.id));
+    case 'paginate': {
+      const fn = window[el.dataset.fn];
+      return typeof fn === 'function' ? fn(Number(el.dataset.page)) : undefined;
+    }
+    default: return;
+  }
+}
+
+function wireDelegatedEvents() {
+  // Clicking the dimmed backdrop of a modal closes it, same as before —
+  // matched by data-close-fn (no-arg close) or data-close-overlay (id-arg close).
+  document.addEventListener('click', (e) => {
+    const backdrop = e.target.closest('.modal-overlay');
+    if (backdrop && e.target === backdrop) {
+      if (backdrop.dataset.closeFn) {
+        const fn = window[backdrop.dataset.closeFn];
+        if (typeof fn === 'function') fn();
+        return;
+      }
+      if (backdrop.dataset.closeOverlay) {
+        closeOverlaySA(backdrop.dataset.closeOverlay);
+        return;
+      }
+    }
+    const el = e.target.closest('[data-action]');
+    if (el) handleDelegatedAction(el.dataset.action, el);
+  });
+  document.addEventListener('change', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (el) handleDelegatedAction(el.dataset.action, el);
+  });
+  document.addEventListener('input', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (el) handleDelegatedAction(el.dataset.action, el);
+  });
+}
+
 (function initSuperAdmin() {
+  wireDelegatedEvents();
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (user && user.name) document.getElementById('saUserName').textContent = user.name;
   const pages = getCurrentEmployeePages();

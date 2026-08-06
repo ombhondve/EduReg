@@ -308,7 +308,14 @@ def set_passwords():
         return jsonify({"success": False, "message": "Invalid or expired reset link"}), 400
 
     token_expiry = user_data.get("token_expiry")
-    token_expiry = datetime.datetime.strptime(token_expiry, "%Y-%m-%d %H:%M:%S.%f")
+    # PyMySQL's DictCursor already returns DATETIME columns as native
+    # datetime objects, not strings — only parse it if it actually came
+    # back as a string (e.g. from a driver/config that stringifies dates).
+    if isinstance(token_expiry, str):
+        try:
+            token_expiry = datetime.datetime.strptime(token_expiry, "%Y-%m-%d %H:%M:%S.%f")
+        except ValueError:
+            token_expiry = datetime.datetime.strptime(token_expiry, "%Y-%m-%d %H:%M:%S")
     if not token_expiry or token_expiry < datetime.datetime.now():
         return jsonify({"success": False, "message": "This reset link has expired"}), 400
 

@@ -53,13 +53,13 @@ function setAuthMode(mode) {
   const switchLine = document.getElementById('authSwitchLine');
 
   if (mode === 'login') {
-    title.textContent = 'Welcome back';
-    sub.textContent = 'Sign in to your registrar account';
-    switchLine.innerHTML = `Don't have an account? <a class="auth-link" href="#" onclick="setAuthMode('signup');return false;">Create one</a>`;
+    title.textContent = 'Team sign in';
+    sub.textContent = 'Sign in to your EduReg employee account';
+    switchLine.innerHTML = `Don't have an account? <a class="auth-link" href="#" data-action="signup">Create one</a>`;
   } else {
     title.textContent = 'Create your account';
     sub.textContent = 'Set up access to the registration portal';
-    switchLine.innerHTML = `Already have an account? <a class="auth-link" href="#" onclick="setAuthMode('login');return false;">Log in</a>`;
+    switchLine.innerHTML = `Already have an account? <a class="auth-link" href="#" data-action="login">Log in</a>`;
   }
 }
 
@@ -227,5 +227,38 @@ function buildLedger() {
   const existing = getCurrentUser();
   if (existing) {
     window.location.href = redirectForRole(existing);
+    return;
   }
+
+  // Wired here instead of onclick="" attributes in the HTML — inline
+  // event handlers are blocked under a strict CSP (script-src 'self'
+  // without 'unsafe-inline'), same as inline <script> blocks.
+  document.getElementById('tabLogin').addEventListener('click', () => setAuthMode('login'));
+  document.getElementById('tabSignup').addEventListener('click', () => setAuthMode('signup'));
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  document.getElementById('signupForm').addEventListener('submit', handleSignup);
+
+  const forgotLink = document.getElementById('forgotPasswordLink');
+  if (forgotLink) forgotLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showToast('Ask your admin to reset your password', 'info');
+  });
+
+  // Password show/hide toggles — one listener handles all of them via
+  // data-pw-target, since each button just needs to know which input
+  // it controls.
+  document.querySelectorAll('.auth-pw-toggle[data-pw-target]').forEach((btn) => {
+    btn.addEventListener('click', () => togglePassword(btn.dataset.pwTarget, btn));
+  });
+
+  // The "Create one" / "Log in" link inside #authSwitchLine gets
+  // replaced (innerHTML) every time setAuthMode runs, so a listener
+  // bound directly to the <a> would be lost on the next toggle.
+  // Delegating from the stable parent survives that.
+  document.getElementById('authSwitchLine').addEventListener('click', (e) => {
+    const link = e.target.closest('[data-action]');
+    if (!link) return;
+    e.preventDefault();
+    setAuthMode(link.dataset.action);
+  });
 })();

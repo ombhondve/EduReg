@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign In — EduReg</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/css/style.css">
 <link rel="stylesheet" href="static/css/auth.css">
 </head>
@@ -50,18 +49,18 @@
   <main class="auth-panel">
     <div class="auth-card">
       <div class="auth-card-head">
-        <div class="auth-card-title" id="authCardTitle">Welcome back</div>
-        <div class="auth-card-sub" id="authCardSub">Sign in to your registrar account</div>
+        <div class="auth-card-title" id="authCardTitle">Team sign in</div>
+        <div class="auth-card-sub" id="authCardSub">Sign in to your EduReg employee account</div>
       </div>
 
       <div class="auth-tabs">
         <div class="auth-tab-indicator"></div>
-        <button type="button" class="auth-tab-btn active" id="tabLogin" onclick="setAuthMode('login')">Log In</button>
-        <button type="button" class="auth-tab-btn" id="tabSignup" onclick="setAuthMode('signup')">Create Account</button>
+        <button type="button" class="auth-tab-btn active" id="tabLogin">Log In</button>
+        <button type="button" class="auth-tab-btn" id="tabSignup">Create Account</button>
       </div>
 
       <!-- LOGIN FORM -->
-      <form class="auth-form active" id="loginForm" onsubmit="return handleLogin(event)">
+      <form class="auth-form active" id="loginForm">
         <div class="form-group">
           <label for="liEmail">Email</label>
           <input type="email" id="liEmail" placeholder="you@university.edu" autocomplete="username">
@@ -71,7 +70,7 @@
           <label for="liPassword">Password</label>
           <div class="auth-pw-wrap">
             <input type="password" id="liPassword" placeholder="Enter your password" autocomplete="current-password">
-            <button type="button" class="auth-pw-toggle" onclick="togglePassword('liPassword', this)">👁️</button>
+            <button type="button" class="auth-pw-toggle" data-pw-target="liPassword">👁️</button>
           </div>
           <div class="field-error" id="liPasswordErr"></div>
         </div>
@@ -80,13 +79,13 @@
             <input type="checkbox" id="liRemember">
             Remember me
           </label>
-          <a class="auth-link" href="#" onclick="showToast('Ask your admin to reset your password','info');return false;">Forgot password?</a>
+          <a class="auth-link" href="#" id="forgotPasswordLink">Forgot password?</a>
         </div>
         <button type="submit" class="btn btn-primary auth-submit" id="loginSubmitBtn">Log In</button>
       </form>
 
       <!-- SIGNUP FORM -->
-      <form class="auth-form" id="signupForm" onsubmit="return handleSignup(event)">
+      <form class="auth-form" id="signupForm">
         <div class="form-group">
           <label for="suName">Full Name</label>
           <input type="text" id="suName" placeholder="Enter your full name" autocomplete="name">
@@ -102,14 +101,14 @@
             <label for="suPassword">Password</label>
             <div class="auth-pw-wrap">
               <input type="password" id="suPassword" placeholder="Create a password" autocomplete="new-password">
-              <button type="button" class="auth-pw-toggle" onclick="togglePassword('suPassword', this)">👁️</button>
+              <button type="button" class="auth-pw-toggle" data-pw-target="suPassword">👁️</button>
             </div>
           </div>
           <div class="form-group">
             <label for="suConfirm">Confirm</label>
             <div class="auth-pw-wrap">
               <input type="password" id="suConfirm" placeholder="Repeat password" autocomplete="new-password">
-              <button type="button" class="auth-pw-toggle" onclick="togglePassword('suConfirm', this)">👁️</button>
+              <button type="button" class="auth-pw-toggle" data-pw-target="suConfirm">👁️</button>
             </div>
           </div>
         </div>
@@ -118,7 +117,10 @@
       </form>
 
       <div class="auth-switch-line" id="authSwitchLine">
-        Don't have an account? <a class="auth-link" href="#" onclick="setAuthMode('signup');return false;">Create one</a>
+        Don't have an account? <a class="auth-link" href="#" data-action="signup">Create one</a>
+      </div>
+      <div class="auth-switch-line">
+        Student or college admin? <a class="auth-link" href="/login.html">Sign in here</a>
       </div>
     </div>
   </main>

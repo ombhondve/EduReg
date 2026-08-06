@@ -180,5 +180,20 @@ function buildLedger() {
   const existing = getCurrentUser();
   if (existing) {
     window.location.href = redirectForRole(existing);
+    return;
   }
+
+  // Wired here instead of onclick="" attributes in the HTML — inline
+  // event handlers are blocked under a strict CSP (script-src 'self'
+  // without 'unsafe-inline'), same as inline <script> blocks.
+  document.getElementById('tabCollege').addEventListener('click', () => setAuthRole('college'));
+  document.getElementById('tabStudent').addEventListener('click', () => setAuthRole('student'));
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  const pwToggle = document.getElementById('liPasswordToggle');
+  if (pwToggle) pwToggle.addEventListener('click', () => togglePassword('liPassword', pwToggle));
+  const forgotLink = document.getElementById('forgotPasswordLink');
+  if (forgotLink) forgotLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    showToast('Ask your admin to reset your password', 'info');
+  });
 })();

@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign In — EduReg</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="static/css/style.css">
 <link rel="stylesheet" href="static/css/login.css">
 </head>
@@ -57,12 +56,12 @@
       <!-- Role switcher replaces the old Login/Signup tabs -->
       <div class="auth-tabs">
         <div class="auth-tab-indicator"></div>
-        <button type="button" class="auth-tab-btn active" id="tabCollege" onclick="setAuthRole('college')">College / Staff</button>
-        <button type="button" class="auth-tab-btn" id="tabStudent" onclick="setAuthRole('student')">Student</button>
+        <button type="button" class="auth-tab-btn active" id="tabCollege">College / Staff</button>
+        <button type="button" class="auth-tab-btn" id="tabStudent">Student</button>
       </div>
 
       <!-- LOGIN FORM (single form, role sent along with credentials) -->
-      <form class="auth-form active" id="loginForm" onsubmit="return handleLogin(event)">
+      <form class="auth-form active" id="loginForm">
         <div class="form-group">
           <label for="liEmail" id="liEmailLabel">Email</label>
           <input type="email" id="liEmail" placeholder="you@university.edu" autocomplete="username">
@@ -72,7 +71,7 @@
           <label for="liPassword">Password</label>
           <div class="auth-pw-wrap">
             <input type="password" id="liPassword" placeholder="Enter your password" autocomplete="current-password">
-            <button type="button" class="auth-pw-toggle" onclick="togglePassword('liPassword', this)">👁️</button>
+            <button type="button" class="auth-pw-toggle" id="liPasswordToggle">👁️</button>
           </div>
           <div class="field-error" id="liPasswordErr"></div>
         </div>
@@ -81,10 +80,13 @@
             <input type="checkbox" id="liRemember">
             Remember me
           </label>
-          <a class="auth-link" href="#" onclick="showToast('Ask your admin to reset your password','info');return false;">Forgot password?</a>
+          <a class="auth-link" href="#" id="forgotPasswordLink">Forgot password?</a>
         </div>
         <button type="submit" class="btn btn-primary auth-submit" id="loginSubmitBtn">Log In</button>
       </form>
+      <div class="auth-switch-line">
+        EduReg team member? <a class="auth-link" href="/admin_login">Sign in here</a>
+      </div>
     </div>
   </main>
 </div>

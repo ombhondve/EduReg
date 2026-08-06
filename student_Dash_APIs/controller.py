@@ -1,7 +1,25 @@
+import os
+
 from flask import Blueprint, jsonify, render_template, request
+from werkzeug.utils import secure_filename
+
 from db_helpers import get_student_db
+from Auth.controller import token_required, roles_required
 
 student_bp = Blueprint("student", __name__)
+
+# FIX (C4): explicit allow-list instead of accepting any file/any type.
+ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "doc", "docx"}
+ALLOWED_MIMETYPES = {
+    "application/pdf", "image/png", "image/jpeg",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
+def _allowed_file(filename, mimetype):
+    ext = filename.rsplit(".", 1)[-1].lower() if filename and "." in filename else ""
+    return ext in ALLOWED_EXTENSIONS and mimetype in ALLOWED_MIMETYPES
 
 
 @student_bp.route("/student", methods=["GET"])
@@ -14,99 +32,86 @@ def student_portal():
     return render_template("student_portal.html")
 
 
-def _current_student_id():
-    """Resolves which student a /student/me/* request is for.
+# ----------------------------------------------------------------------
+# FIX (C1): every /student/me/* route below used to resolve "which
+# student" from a client-supplied `student_id` query param or
+# `X-Student-Id` header — meaning anyone could read or write ANY
+# student's data just by changing that value, with no login required.
+#
+# Now every route is behind @token_required, and the student id comes
+# ONLY from the verified JWT (request.auth_user['id']), never from
+# anything the client sends. @roles_required("student") additionally
+# stops a college_admin/employee token from being used to hit these
+# student-only self-service routes (defense in depth beyond just "is
+# there a valid token").
+# ----------------------------------------------------------------------
 
-    NOTE: this app doesn't verify accessTokens anywhere yet (login just
-    hands back a static "local-session" string), so there is no way to
-    cryptographically tie a request back to a specific logged-in student.
-    Until real token verification exists, this can only trust the id the
-    client sends — it can no longer silently fall back to "whichever
-    student happens to be first in the table" (that was leaking arbitrary
-    students' data to anyone who didn't pass an id). Once real auth is
-    added, replace this with the student id decoded from the verified
-    session/JWT instead of a client-supplied value.
-    """
-    return request.args.get("student_id") or request.headers.get("X-Student-Id")
-
-
-def _require_student():
-    """Returns (student_id, error_response_or_None)."""
-    student_id = _current_student_id()
-    if not student_id:
-        return None, (jsonify({"error": "student_id is required"}), 401)
-    return student_id, None
+def _student_id_from_token():
+    return request.auth_user["id"]
 
 
 @student_bp.route("/student/me", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_me():
-    student_id, err = _require_student()
-    if err:
-        return err
-    profile = get_student_db().get_profile(student_id)
+    profile = get_student_db().get_profile(_student_id_from_token())
     if not profile:
         return jsonify({"error": "Student not found"}), 404
     return jsonify(profile), 200
 
 
 @student_bp.route("/student/me/courses", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_courses():
-    student_id, err = _require_student()
-    if err:
-        return err
-    return jsonify(get_student_db().get_courses(student_id)), 200
+    return jsonify(get_student_db().get_courses(_student_id_from_token())), 200
 
 
 @student_bp.route("/student/me/grades", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_grades():
-    student_id, err = _require_student()
-    if err:
-        return err
-    return jsonify(get_student_db().get_grades(student_id)), 200
+    return jsonify(get_student_db().get_grades(_student_id_from_token())), 200
 
 
 @student_bp.route("/student/me/attendance", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_attendance():
-    student_id, err = _require_student()
-    if err:
-        return err
-    return jsonify(get_student_db().get_attendance(student_id)), 200
+    return jsonify(get_student_db().get_attendance(_student_id_from_token())), 200
 
 
 @student_bp.route("/student/me/fees", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_fees():
-    student_id, err = _require_student()
-    if err:
-        return err
-    return jsonify(get_student_db().get_fees(student_id)), 200
+    return jsonify(get_student_db().get_fees(_student_id_from_token())), 200
 
 
 @student_bp.route("/student/me/notices", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_notices():
-    student_id, err = _require_student()
-    if err:
-        return err
-    return jsonify(get_student_db().get_notices(student_id)), 200
+    return jsonify(get_student_db().get_notices(_student_id_from_token())), 200
 
 
 @student_bp.route("/student/me/documents", methods=["GET", "POST"])
+@token_required
+@roles_required("student")
 def student_documents():
-    student_id, err = _require_student()
-    if err:
-        return err
+    student_id = _student_id_from_token()
     obj = get_student_db()
 
     if request.method == "POST":
-        import os
-        from werkzeug.utils import secure_filename
-
         file = request.files.get("file")
-        if not file:
+        if not file or not file.filename:
             return jsonify({"error": "File is required"}), 400
+        if not _allowed_file(file.filename, file.mimetype):
+            return jsonify({"error": "Unsupported file type"}), 400
 
         upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "documents")
         os.makedirs(upload_dir, exist_ok=True)
-        filename = secure_filename(file.filename or "document")
+        filename = secure_filename(file.filename)
         stored_name = f"{student_id}_{filename}"
         path = os.path.join(upload_dir, stored_name)
         file.save(path)
@@ -126,10 +131,10 @@ def student_documents():
 
 
 @student_bp.route("/student/me/messages", methods=["GET", "POST"])
+@token_required
+@roles_required("student")
 def student_messages():
-    student_id, err = _require_student()
-    if err:
-        return err
+    student_id = _student_id_from_token()
     obj = get_student_db()
 
     if request.method == "POST":
@@ -145,13 +150,14 @@ def student_messages():
 
 
 @student_bp.route("/student/me/timetable", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_timetable():
-    student_id, err = _require_student()
-    if err:
-        return err
-    return jsonify(get_student_db().get_timetable(student_id)), 200
+    return jsonify(get_student_db().get_timetable(_student_id_from_token())), 200
 
 
 @student_bp.route("/student/me/calendar", methods=["GET"])
+@token_required
+@roles_required("student")
 def student_calendar():
     return jsonify(get_student_db().get_calendar()), 200

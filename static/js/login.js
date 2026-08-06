@@ -12,10 +12,14 @@ const API_BASE = window.STUDENT_API_BASE || '';
 const ROLE_REDIRECTS = {
   super_admin: 'admin.html',
   admin: 'collage_portal.html',
+  college_admin: 'collage_portal.html',
   staff: 'collage_portal.html',
   student: 'student_portal.html',
 };
-const DEFAULT_REDIRECT = 'student_portal.html';
+// This page only ever logs in students or college admins, so an
+// unrecognized role should never happen post-login — but if it does,
+// send them to the college portal rather than guessing student.
+const DEFAULT_REDIRECT = 'collage_portal.html';
 const AUTH_STORAGE_KEY = 'eduregUser';
 
 const ROLE_CONTENT = {

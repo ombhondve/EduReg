@@ -72,10 +72,15 @@
     var ROLE_REDIRECTS = {
       super_admin: 'admin.html',
       admin: 'collage_portal.html',
+      college_admin: 'collage_portal.html',
       staff: 'collage_portal.html',
       student: 'student_portal.html',
     };
-    var DEFAULT_REDIRECT = 'admin.html';
+    // No recognized role in storage (or nothing stored at all) -> login,
+    // not a portal. Landing an unauthenticated visitor on admin.html by
+    // default was the actual bug: a blank/unknown role silently looked
+    // like a super admin.
+    var DEFAULT_REDIRECT = TARGET_LOGIN;
 
     function goNext(){
       var user = null;

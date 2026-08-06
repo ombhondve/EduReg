@@ -1,17 +1,34 @@
 import threading
-from flask import Flask, Response, jsonify, render_template, request, Blueprint
+from flask import Response, jsonify, render_template, request, Blueprint
 from db_helpers import get_superadmin_db, get_main_db, get_search_db
 import os
 import secrets
 from datetime import datetime, timedelta
 from services.email_service import send_mail
+from Auth.controller import token_required, roles_required
 
 
 superadmin_bp = Blueprint('superadmin', __name__)
 
 SECRET_KEY = os.getenv("JWT_SECRET")
 
+# ----------------------------------------------------------------------
+# FIX (C1): this was the most exposed blueprint in the app — every route,
+# including create/suspend/delete school, create/delete employees, view
+# students across every tenant, and impersonate a school (!), had zero
+# authentication. Everything below now requires a valid super_admin
+# token. If you have finer-grained employee permissions (the `pages`
+# claim from admin_login), add a per-route check like:
+#
+#   if "schools" not in request.auth_user.get("pages", []):
+#       return jsonify({"error": "Forbidden"}), 403
+#
+# for the sections a given employee role shouldn't reach.
+# ----------------------------------------------------------------------
+
 @superadmin_bp.route("/superadmin/stats", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def get_stats():
     obj_sup = get_superadmin_db()
     data = obj_sup.get_stats()
@@ -20,6 +37,8 @@ def get_stats():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/schools", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_schools():
     obj_sup = get_superadmin_db()
     search = request.args.get("search", "")
@@ -32,9 +51,11 @@ def retrieve_schools():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/schools", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def add_school():
     obj_sup = get_superadmin_db()
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     required = ["name", "subdomain", "adminEmail"]
     missing = [f for f in required if not data.get(f)]
     if missing:
@@ -52,6 +73,8 @@ def add_school():
         return jsonify({"error": "Failed to add school organization"}), 500
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_school(school_id):
     obj_sup = get_superadmin_db()
     data = obj_sup.get_school(school_id)
@@ -60,6 +83,8 @@ def retrieve_school(school_id):
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>", methods=["PUT"])
+@token_required
+@roles_required("super_admin")
 def update_school(school_id):
     obj_sup = get_superadmin_db()
     data = request.get_json(silent=True) or {}
@@ -69,6 +94,8 @@ def update_school(school_id):
     return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>/suspend", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def suspend_school(school_id):
     updated = get_superadmin_db().set_school_status(school_id, "Suspended")
     if not updated:
@@ -76,6 +103,8 @@ def suspend_school(school_id):
     return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>/activate", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def activate_school(school_id):
     updated = get_superadmin_db().set_school_status(school_id, "Active")
     if not updated:
@@ -83,6 +112,8 @@ def activate_school(school_id):
     return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>", methods=["DELETE"])
+@token_required
+@roles_required("super_admin")
 def delete_school(school_id):
     ok = get_superadmin_db().delete_school(school_id)
     if not ok:
@@ -90,6 +121,8 @@ def delete_school(school_id):
     return jsonify({"message": "School deleted successfully"}), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>/admins", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_school_admins(school_id):
     admins = get_superadmin_db().get_school_admins(school_id)
     if admins is None:
@@ -97,6 +130,8 @@ def retrieve_school_admins(school_id):
     return jsonify(admins), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>/resend-invite", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def resend_school_invite(school_id):
     obj_sup = get_superadmin_db()
     token = secrets.token_urlsafe(64)
@@ -108,21 +143,29 @@ def resend_school_invite(school_id):
     return jsonify({"message": "Invite regenerated", "mail_sent": mail_sent}), 200
 
 @superadmin_bp.route("/superadmin/schools/<int:school_id>/impersonate", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def impersonate_school(school_id):
     school = get_superadmin_db().get_school(school_id)
     if not school:
         return jsonify({"error": "School not found"}), 404
     data = request.get_json(silent=True) or {}
-    admin_name = data.get("adminName", "Employee")
+    # FIX: log the ACTUAL authenticated caller (from the verified token),
+    # not a client-supplied "adminName" string that could say anything.
+    caller_name = request.auth_user.get("name") or request.auth_user.get("email") or "Unknown employee"
     reason = data.get("reason", "Support session")
-    get_superadmin_db().log_impersonation(admin_name, school_id, reason)
+    get_superadmin_db().log_impersonation(caller_name, school_id, reason)
+    # NOTE: this issues a random opaque string, not a real JWT — it won't
+    # pass token_required anywhere. If impersonation needs to actually
+    # work, issue a real short-lived access token scoped to that school's
+    # admin role instead, and log it with the same rigor as a real login.
     return jsonify({
         "message": "Impersonation session prepared",
         "schoolId": school_id,
         "schoolName": school.get("name"),
         "accessToken": secrets.token_urlsafe(32),
     }), 200
-    
+
 def sending_mail_set_pass(to_email, user_name, token):
     link = f"http://127.0.0.1:5000/set-password?type=col-admin&token={token}"
 
@@ -166,6 +209,8 @@ def sending_mail_set_pass(to_email, user_name, token):
         return False
 
 @superadmin_bp.route("/superadmin/employees", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_employees():
     obj_sup = get_superadmin_db()
     data = obj_sup.get_employees(
@@ -179,14 +224,15 @@ def retrieve_employees():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/employees", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def add_employee():
     obj_sup = get_superadmin_db()
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
-    required = ["name","email", "roles","pages","phone","designation","department","employmentType","status"]
+    required = ["name", "email", "roles", "pages", "phone", "designation", "department", "employmentType", "status"]
     data['invite_token'] = secrets.token_urlsafe(64)
     data['token_expiry'] = (datetime.now() + timedelta(minutes=30))
-    print("Received data:", data)
     missing = [f for f in required if not data.get(f)]
     if missing:
         return jsonify({"error": f"Missing required field(s): {', '.join(missing)}"}), 400
@@ -203,6 +249,8 @@ def add_employee():
         return jsonify({"error": "Failed to add employee"}), 500
 
 @superadmin_bp.route("/superadmin/employees/<int:employee_id>", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_employee(employee_id):
     employee = get_superadmin_db().get_employee(employee_id)
     if not employee:
@@ -210,6 +258,8 @@ def retrieve_employee(employee_id):
     return jsonify(employee), 200
 
 @superadmin_bp.route("/superadmin/employees/<int:employee_id>", methods=["PUT"])
+@token_required
+@roles_required("super_admin")
 def update_employee(employee_id):
     employee = get_superadmin_db().update_employee(employee_id, request.get_json(silent=True) or {})
     if not employee:
@@ -217,6 +267,8 @@ def update_employee(employee_id):
     return jsonify(employee), 200
 
 @superadmin_bp.route("/superadmin/employees/<int:employee_id>/suspend", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def suspend_employee(employee_id):
     employee = get_superadmin_db().set_employee_status(employee_id, "Suspended")
     if not employee:
@@ -224,6 +276,8 @@ def suspend_employee(employee_id):
     return jsonify(employee), 200
 
 @superadmin_bp.route("/superadmin/employees/<int:employee_id>/activate", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def activate_employee(employee_id):
     employee = get_superadmin_db().set_employee_status(employee_id, "Active")
     if not employee:
@@ -231,6 +285,8 @@ def activate_employee(employee_id):
     return jsonify(employee), 200
 
 @superadmin_bp.route("/superadmin/employees/<int:employee_id>", methods=["DELETE"])
+@token_required
+@roles_required("super_admin")
 def delete_employee(employee_id):
     ok = get_superadmin_db().delete_employee(employee_id)
     if not ok:
@@ -238,6 +294,8 @@ def delete_employee(employee_id):
     return jsonify({"message": "Employee deleted successfully"}), 200
 
 @superadmin_bp.route("/superadmin/employees/<int:employee_id>/resend-invite", methods=["POST"])
+@token_required
+@roles_required("super_admin")
 def resend_employee_invite(employee_id):
     token = secrets.token_urlsafe(64)
     expiry = datetime.now() + timedelta(minutes=30)
@@ -252,6 +310,8 @@ def resend_employee_invite(employee_id):
     return jsonify({"message": "Invite regenerated", "mail_sent": "pending"}), 200
 
 @superadmin_bp.route("/superadmin/students", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_cross_school_students():
     data = get_superadmin_db().get_students(
         request.args.get("search", ""),
@@ -264,6 +324,8 @@ def retrieve_cross_school_students():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/students/<int:student_id>", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_cross_school_student(student_id):
     student = get_superadmin_db().get_student(student_id)
     if not student:
@@ -271,6 +333,8 @@ def retrieve_cross_school_student(student_id):
     return jsonify(student), 200
 
 @superadmin_bp.route("/superadmin/onboarding", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_onboarding():
     data = get_superadmin_db().get_onboarding()
     if data is None:
@@ -278,6 +342,8 @@ def retrieve_onboarding():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/onboarding/<int:school_id>", methods=["PUT"])
+@token_required
+@roles_required("super_admin")
 def move_onboarding(school_id):
     stage = (request.get_json(silent=True) or {}).get("stage")
     status = "Active" if stage == "Active" else "Inactive"
@@ -287,6 +353,8 @@ def move_onboarding(school_id):
     return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/revenue", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_revenue():
     data = get_superadmin_db().get_revenue()
     if data is None:
@@ -294,6 +362,8 @@ def retrieve_revenue():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/tickets", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_tickets():
     data = get_superadmin_db().get_tickets(
         request.args.get("status", ""),
@@ -305,6 +375,8 @@ def retrieve_tickets():
     return jsonify(data), 200
 
 @superadmin_bp.route("/superadmin/tickets/<int:ticket_id>", methods=["PUT"])
+@token_required
+@roles_required("super_admin")
 def update_ticket(ticket_id):
     status = (request.get_json(silent=True) or {}).get("status", "pending")
     updated = get_superadmin_db().update_ticket_status(ticket_id, status)
@@ -313,16 +385,22 @@ def update_ticket(ticket_id):
     return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/impersonation-log", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_impersonation_log():
     limit = request.args.get("limit", 50)
     return jsonify(get_superadmin_db().get_impersonation_log(limit)), 200
 
 @superadmin_bp.route("/superadmin/activity-log", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_activity_log():
     limit = request.args.get("limit", 20)
     return jsonify(get_superadmin_db().get_activity_log(limit)), 200
 
 @superadmin_bp.route("/superadmin/notifications", methods=["GET", "POST"])
+@token_required
+@roles_required("super_admin")
 def superadmin_notifications():
     obj_sup = get_superadmin_db()
     if request.method == "POST":
@@ -336,10 +414,14 @@ def superadmin_notifications():
     return jsonify(obj_sup.get_notifications()), 200
 
 @superadmin_bp.route("/superadmin/feature-flags", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_feature_flags():
     return jsonify(get_superadmin_db().get_feature_flags()), 200
 
 @superadmin_bp.route("/superadmin/feature-flags/<key>", methods=["PUT"])
+@token_required
+@roles_required("super_admin")
 def update_feature_flag(key):
     data = request.get_json(silent=True) or {}
     updated = get_superadmin_db().update_feature_flag(key, bool(data.get("enabled")))
@@ -348,6 +430,8 @@ def update_feature_flag(key):
     return jsonify(updated), 200
 
 @superadmin_bp.route("/superadmin/api-usage", methods=["GET"])
+@token_required
+@roles_required("super_admin")
 def retrieve_api_usage():
     data = get_superadmin_db().get_api_usage()
     if data is None:

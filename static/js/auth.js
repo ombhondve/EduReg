@@ -12,9 +12,14 @@ const API_BASE = window.ADMIN_API_BASE || '';
 const ROLE_REDIRECTS = {
   super_admin: 'admin.html',
   admin: 'collage_portal.html',
+  college_admin: 'collage_portal.html',
   staff: 'collage_portal.html',
   student: 'student_portal.html',
 };
+// This page only logs in super admins / internal employees, so
+// DEFAULT_REDIRECT staying admin.html is correct here (unlike index.html
+// and login.js, which shouldn't guess a privileged landing page for an
+// unrecognized role).
 const DEFAULT_REDIRECT = 'admin.html';
 const AUTH_STORAGE_KEY = 'eduregUser';
 

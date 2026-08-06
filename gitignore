@@ -1,0 +1,26 @@
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+env.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Local dev DB artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+# Uploaded user files (should not live in git)
+static/uploads/
+
+# Editor/OS junk
+.vscode/
+.idea/
+.DS_Store

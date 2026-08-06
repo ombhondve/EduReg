@@ -65,6 +65,37 @@ def token_required(f):
     return wrapper
 
 
+def roles_required(*allowed_roles):
+    """Gate a route to specific roles. Verifies the token (same as
+    token_required) and additionally checks that the caller's role is
+    one of allowed_roles. Checks both the single `role` claim
+    (student/college_admin logins) and the `roles` list claim (employee
+    logins, who can hold more than one role — see po_admin_login above),
+    so it works for either token shape.
+
+    Usage: @roles_required("super_admin") or @roles_required("super_admin", "billing")
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            header = request.headers.get("Authorization", "")
+            token = header.split(" ", 1)[1] if header.startswith("Bearer ") else None
+            payload, error = _decode(token)
+            if error:
+                return jsonify({"error": error}), 401
+            if payload.get("type") != "access":
+                return jsonify({"error": "Invalid token type"}), 401
+
+            user_roles = payload.get("roles") or ([payload["role"]] if payload.get("role") else [])
+            if not any(r in allowed_roles for r in user_roles):
+                return jsonify({"error": "You do not have permission to access this resource"}), 403
+
+            request.auth_user = payload
+            return f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def _as_list(value):
     """Employees.roles / .pages are stored as JSON text; normalize to a list."""
     if isinstance(value, list):
@@ -201,7 +232,7 @@ def signup():
     try:
         search_obj.cur.execute(
             "INSERT INTO users (name, email, hashed_password, role, created_at) VALUES (%s, %s, %s, %s, NOW())",
-            (name, email, hashed_password, "admin"),
+            (name, email, hashed_password, "college_admin"),
         )
         search_obj.conn.commit()
         user_id = search_obj.cur.lastrowid
@@ -211,13 +242,13 @@ def signup():
         return jsonify({"error": "Failed to create account"}), 500
 
     access_token, refresh_token = _issue_tokens({
-        "id": user_id, "email": email, "role": "admin", "name": name,
+        "id": user_id, "email": email, "role": "college_admin", "name": name,
     })
     return jsonify({
         "id": user_id,
         "name": name,
         "email": email,
-        "role": "admin",
+        "role": "college_admin",
         "accessToken": access_token,
         "refreshToken": refresh_token,
     }), 201

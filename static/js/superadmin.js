@@ -22,6 +22,16 @@ const DEMO_DATA = {
     { type: 'create', text: 'Northlake University onboarded on enterprise plan', time: '2 months ago' },
   ],
 
+  // ---- Schools (tenant institutions) ----
+  schools: [
+    { id: 1, name: 'Sunrise Institute of Technology', subdomain: 'sunrise', city: 'Nashik', country: 'India', plan: 'pro', status: 'Active', students: 3120, maxStudents: 5000, maxStaff: 120, storageGb: 42, billingCycle: 'Monthly', adminName: 'Meera Kulkarni', adminEmail: 'admin@sunrise.edu', adminPhone: '+91 98765 43210', createdAt: '5 months ago' },
+    { id: 2, name: 'Greenfield College', subdomain: 'greenfield', city: 'Pune', country: 'India', plan: 'basic', status: 'Active', students: 640, maxStudents: 1000, maxStaff: 30, storageGb: 8, billingCycle: 'Monthly', adminName: 'Rahul Deshmukh', adminEmail: 'admin@greenfield.edu', adminPhone: '+91 90000 11122', createdAt: '3 months ago' },
+    { id: 3, name: 'Northlake University', subdomain: 'northlake', city: 'Bengaluru', country: 'India', plan: 'enterprise', status: 'Active', students: 8420, maxStudents: 10000, maxStaff: 312, storageGb: 210, billingCycle: 'Yearly', adminName: 'Ananya Rao', adminEmail: 'admin@northlake.edu', adminPhone: '+91 99887 66554', createdAt: '8 months ago' },
+    { id: 4, name: 'Riverside Coaching Center', subdomain: 'riverside', city: 'Nagpur', country: 'India', plan: 'basic', status: 'Suspended', students: 120, maxStudents: 500, maxStaff: 10, storageGb: 3, billingCycle: 'Monthly', adminName: 'Devansh Iyer', adminEmail: 'admin@riverside.edu', adminPhone: '', createdAt: '1 year ago' },
+    { id: 5, name: 'Horizon Coaching Institute', subdomain: 'horizon', city: 'Indore', country: 'India', plan: 'trial', status: 'Pending Setup', students: 0, maxStudents: 200, maxStaff: 5, storageGb: 1, billingCycle: 'Monthly', adminName: 'Karan Mehta', adminEmail: 'admin@horizon.edu', adminPhone: '', createdAt: '1 day ago' },
+    { id: 6, name: 'Vidya Bhavan Polytechnic', subdomain: 'vidyabhavan', city: 'Surat', country: 'India', plan: 'trial', status: 'Pending Setup', students: 0, maxStudents: 200, maxStaff: 5, storageGb: 1, billingCycle: 'Monthly', adminName: 'Priya Sharma', adminEmail: 'admin@vidyabhavan.edu', adminPhone: '', createdAt: '3 hours ago' },
+  ],
+
   // ---- Students (cross-tenant, read-only) ----
   students: [
     { id: 1, name: 'Aarav Patil', rollNo: '21CS0147', schoolId: 1, schoolName: 'Sunrise Institute of Technology', program: 'B.Tech CSE, Sem 5', status: 'Active', lastActive: '2 hours ago', enrolled: 'Aug 2023', email: 'aarav.patil@sunrise.edu' },

@@ -219,7 +219,7 @@ class superadmin_models(controller):
                 LEFT JOIN organization_admins a ON a.organization_id = o.organization_id
                 LEFT JOIN (
                     SELECT organization_id, COUNT(*) AS student_count
-                    FROM students
+                    FROM student_directory
                     GROUP BY organization_id
                 ) st ON st.organization_id = o.organization_id
                 WHERE 1=1
@@ -477,7 +477,7 @@ class superadmin_models(controller):
             )
             trial_schools = self.cur.fetchone()['c']
 
-            self.cur.execute("SELECT COUNT(*) AS c FROM students")
+            self.cur.execute("SELECT COUNT(*) AS c FROM student_directory")
             total_students = self.cur.fetchone()['c']
 
             self.cur.execute(
@@ -822,7 +822,7 @@ class superadmin_models(controller):
                     st.email             AS email,
                     st.last_active       AS lastActiveRaw,
                     st.created_at        AS enrolledRaw
-                FROM students st
+                FROM student_directory st
                 JOIN organizations o ON o.organization_id = st.organization_id
                 LEFT JOIN organization_plans p ON p.organization_id = st.organization_id
                 WHERE 1=1

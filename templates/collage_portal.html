@@ -20,84 +20,84 @@
     </div>
     <nav class="nav" id="nav">
       <div class="nav-section">Main</div>
-      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+      <div class="nav-item active" data-page="dashboard" data-onclick="navigate('dashboard')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         <span>Dashboard</span>
       </div>
-      <div class="nav-item" data-page="students" onclick="navigate('students')">
+      <div class="nav-item" data-page="students" data-onclick="navigate('students')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span>Students</span>
       </div>
-      <div class="nav-item" data-page="courses" onclick="navigate('courses')">
+      <div class="nav-item" data-page="courses" data-onclick="navigate('courses')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         <span>Courses</span>
       </div>
 
       <div class="nav-section">Academic</div>
-      <div class="nav-item" data-page="attendance" onclick="navigate('attendance')">
+      <div class="nav-item" data-page="attendance" data-onclick="navigate('attendance')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
         <span>Attendance</span>
       </div>
-      <div class="nav-item" data-page="timetable" onclick="navigate('timetable')">
+      <div class="nav-item" data-page="timetable" data-onclick="navigate('timetable')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
         <span>Timetable</span>
       </div>
 
       <div class="nav-section">Finance</div>
-      <div class="nav-item" data-page="fees" onclick="navigate('fees')">
+      <div class="nav-item" data-page="fees" data-onclick="navigate('fees')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         <span>Fees &amp; Payments</span>
       </div>
 
       <div class="nav-section">Engagement</div>
-      <div class="nav-item" data-page="notifications" onclick="navigate('notifications')">
+      <div class="nav-item" data-page="notifications" data-onclick="navigate('notifications')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span>Notifications</span>
         <span class="nav-badge" id="navNotifBadge" style="display:none">0</span>
       </div>
-      <div class="nav-item" data-page="messages" onclick="navigate('messages')">
+      <div class="nav-item" data-page="messages" data-onclick="navigate('messages')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Messages</span>
       </div>
-      <div class="nav-item" data-page="calendar" onclick="navigate('calendar')">
+      <div class="nav-item" data-page="calendar" data-onclick="navigate('calendar')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Calendar</span>
       </div>
 
       <div class="nav-section">Records</div>
-      <div class="nav-item" data-page="documents" onclick="navigate('documents')">
+      <div class="nav-item" data-page="documents" data-onclick="navigate('documents')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span>Documents</span>
       </div>
-      <div class="nav-item" data-page="analytics" onclick="navigate('analytics')">
+      <div class="nav-item" data-page="analytics" data-onclick="navigate('analytics')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <span>Analytics</span>
       </div>
-      <div class="nav-item" data-page="reports" onclick="navigate('reports')">
+      <div class="nav-item" data-page="reports" data-onclick="navigate('reports')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="14 2 14 8 20 8"/></svg>
         <span>Reports</span>
       </div>
-      <div class="nav-item" data-page="activity" onclick="navigate('activity')">
+      <div class="nav-item" data-page="activity" data-onclick="navigate('activity')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         <span>Activity Log</span>
       </div>
 
       <div class="nav-section">Admin</div>
-      <div class="nav-item" data-page="import" onclick="navigate('import')">
+      <div class="nav-item" data-page="import" data-onclick="navigate('import')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>Bulk Import</span>
       </div>
-      <div class="nav-item" data-page="roles" onclick="navigate('roles')">
+      <div class="nav-item" data-page="roles" data-onclick="navigate('roles')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7z"/></svg>
         <span>Roles &amp; Access</span>
       </div>
-      <div class="nav-item" data-page="settings" onclick="navigate('settings')">
+      <div class="nav-item" data-page="settings" data-onclick="navigate('settings')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
       </div>
 
       <div class="nav-section">Support</div>
-      <div class="nav-item" data-page="help" onclick="navigate('help')">
+      <div class="nav-item" data-page="help" data-onclick="navigate('help')">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span>Help &amp; Support</span>
       </div>
@@ -109,7 +109,7 @@
           <p id="sidebarUserName">Admin</p>
           <span id="sidebarUserRole">Registrar</span>
         </div>
-        <button class="logout-btn" id="logoutBtn" title="Log out" onclick="handleLogout()">
+        <button class="logout-btn" id="logoutBtn" title="Log out" data-onclick="handleLogout()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
@@ -125,26 +125,26 @@
       </div>
       <div class="topbar-actions">
         <div class="notif-bell-wrap">
-          <button class="btn-icon notif-bell-btn" id="notifBellBtn" title="Notifications" onclick="toggleNotifDropdown()">
+          <button class="btn-icon notif-bell-btn" id="notifBellBtn" title="Notifications" data-onclick="toggleNotifDropdown()">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span class="notif-badge" id="notifBadge" style="display:none">0</span>
           </button>
           <div class="notif-dropdown" id="notifDropdown">
             <div class="notif-dropdown-header">
               <span>Notifications</span>
-              <button class="notif-clear-btn" onclick="dismissAllAlerts()">Clear alerts</button>
+              <button class="notif-clear-btn" data-onclick="dismissAllAlerts()">Clear alerts</button>
             </div>
             <div class="notif-dropdown-list" id="notifDropdownList">
               <div class="loading" style="padding:1.5rem"><div class="spinner"></div></div>
             </div>
-            <div class="notif-dropdown-footer" onclick="navigate('notifications');closeNotifDropdown()">View all notifications →</div>
+            <div class="notif-dropdown-footer" data-onclick="navigate('notifications');closeNotifDropdown()">View all notifications →</div>
           </div>
         </div>
-        <button class="btn btn-secondary" onclick="exportStudents()">
+        <button class="btn btn-secondary" data-onclick="exportStudents()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export CSV
         </button>
-        <button class="btn btn-primary" onclick="openAddModal()">
+        <button class="btn btn-primary" data-onclick="openAddModal()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Student
         </button>
@@ -156,11 +156,11 @@
 </div>
 
 <!-- Add/Edit Modal -->
-<div class="modal-overlay" id="studentModal" onclick="if(event.target===this)closeModal()">
+<div class="modal-overlay" id="studentModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle">Add New Student</div>
-      <button class="btn-icon" onclick="closeModal()">
+      <button class="btn-icon" data-onclick="closeModal()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -235,8 +235,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveStudent()">
+      <button class="btn btn-secondary" data-onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" data-onclick="saveStudent()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
         Save Student
       </button>
@@ -251,18 +251,18 @@
     <div class="confirm-title">Delete Student?</div>
     <div class="confirm-text">This action cannot be undone. The student record will be permanently removed from the system.</div>
     <div class="confirm-actions">
-      <button class="btn btn-secondary" onclick="closeConfirm()">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+      <button class="btn btn-secondary" data-onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-danger" data-onclick="confirmDelete()">Delete</button>
     </div>
   </div>
 </div>
 
 <!-- Send Notification Modal -->
-<div class="modal-overlay" id="notifyModal" onclick="if(event.target===this)closeOverlay('notifyModal')">
+<div class="modal-overlay" id="notifyModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="notifyModalTitle">Send Notification</div>
-      <button class="btn-icon" onclick="closeOverlay('notifyModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('notifyModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -272,7 +272,7 @@
         <div class="form-grid">
           <div class="form-group">
             <label>Send To *</label>
-            <select class="form-select" id="nAudience" onchange="updateAudienceSubField()">
+            <select class="form-select" id="nAudience" data-onchange="updateAudienceSubField()">
               <option value="all">All Students</option>
               <option value="course">Students in a Course</option>
               <option value="status">Students with a Status</option>
@@ -312,8 +312,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('notifyModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitNotification()">
+      <button class="btn btn-secondary" data-onclick="closeOverlay('notifyModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitNotification()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Send Notification
       </button>
@@ -322,11 +322,11 @@
 </div>
 
 <!-- Mark Attendance Modal -->
-<div class="modal-overlay" id="attendanceModal" onclick="if(event.target===this)closeOverlay('attendanceModal')">
+<div class="modal-overlay" id="attendanceModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Mark Attendance</div>
-      <button class="btn-icon" onclick="closeOverlay('attendanceModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('attendanceModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -338,18 +338,18 @@
       <div style="margin-top:1rem" id="attStudentList"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('attendanceModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitAttendance()">Save Attendance</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('attendanceModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitAttendance()">Save Attendance</button>
     </div>
   </div>
 </div>
 
 <!-- Record Payment Modal -->
-<div class="modal-overlay" id="feeModal" onclick="if(event.target===this)closeOverlay('feeModal')">
+<div class="modal-overlay" id="feeModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="feeModalTitle">Record Payment</div>
-      <button class="btn-icon" onclick="closeOverlay('feeModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('feeModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -368,18 +368,18 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('feeModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitFee()">Save Record</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('feeModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitFee()">Save Record</button>
     </div>
   </div>
 </div>
 
 <!-- Upload Document Modal -->
-<div class="modal-overlay" id="documentModal" onclick="if(event.target===this)closeOverlay('documentModal')">
+<div class="modal-overlay" id="documentModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Upload Document</div>
-      <button class="btn-icon" onclick="closeOverlay('documentModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('documentModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -394,26 +394,26 @@
         </div>
         <div class="form-group full">
           <label>File</label>
-          <div class="import-dropzone" onclick="document.getElementById('docFileInput').click()">
+          <div class="import-dropzone" data-data-onclick="onDropzoneClick">
             <span id="docFileLabel">📄 Click to choose a file</span>
           </div>
-          <input type="file" id="docFileInput" style="display:none" onchange="document.getElementById('docFileLabel').textContent='📄 '+(this.files[0]?.name||'')">
+          <input type="file" id="docFileInput" style="display:none" data-data-onchange="onDocFileChosen">
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('documentModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitDocument()">Save Document</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('documentModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitDocument()">Save Document</button>
     </div>
   </div>
 </div>
 
 <!-- Timetable Entry Modal -->
-<div class="modal-overlay" id="timetableModal" onclick="if(event.target===this)closeOverlay('timetableModal')">
+<div class="modal-overlay" id="timetableModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Add Timetable Entry</div>
-      <button class="btn-icon" onclick="closeOverlay('timetableModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('timetableModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -431,44 +431,44 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('timetableModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitTimetable()">Save Entry</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('timetableModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitTimetable()">Save Entry</button>
     </div>
   </div>
 </div>
 
 <!-- Bulk Import Modal -->
-<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeOverlay('importModal')">
+<div class="modal-overlay" id="importModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Bulk Import Students</div>
-      <button class="btn-icon" onclick="closeOverlay('importModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('importModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="modal-body">
-      <div class="import-dropzone" onclick="document.getElementById('importFileInput').click()">
+      <div class="import-dropzone" data-data-onclick="onDropzoneClick">
         <span id="importFileLabel">📁 Click to choose a CSV/Excel file</span>
       </div>
-      <input type="file" id="importFileInput" accept=".csv,.xlsx" style="display:none" onchange="handleImportFileChosen(this)">
+      <input type="file" id="importFileInput" accept=".csv,.xlsx" style="display:none" data-onchange="handleImportFileChosen(this)">
       <div id="importPreviewWrap" style="margin-top:1rem;display:none">
         <div class="form-section-title">Preview</div>
         <div id="importPreviewBody" style="font-size:0.82rem;color:var(--text2)"></div>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('importModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitImport()">Import Students</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('importModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitImport()">Import Students</button>
     </div>
   </div>
 </div>
 
 <!-- Add/Edit Role Modal -->
-<div class="modal-overlay" id="roleModal" onclick="if(event.target===this)closeOverlay('roleModal')">
+<div class="modal-overlay" id="roleModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="roleModalTitle">Add Staff Member</div>
-      <button class="btn-icon" onclick="closeOverlay('roleModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('roleModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -487,18 +487,18 @@
       <div class="form-grid" id="rolePermsWrap"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('roleModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitRole()">Save Staff Member</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('roleModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitRole()">Save Staff Member</button>
     </div>
   </div>
 </div>
 
 <!-- Add Calendar Event Modal -->
-<div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeOverlay('eventModal')">
+<div class="modal-overlay" id="eventModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Add Calendar Event</div>
-      <button class="btn-icon" onclick="closeOverlay('eventModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('eventModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -513,18 +513,18 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('eventModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitEvent()">Add Event</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('eventModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitEvent()">Add Event</button>
     </div>
   </div>
 </div>
 
 <!-- Compose Message Modal -->
-<div class="modal-overlay" id="messageModal" onclick="if(event.target===this)closeOverlay('messageModal')">
+<div class="modal-overlay" id="messageModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">New Message</div>
-      <button class="btn-icon" onclick="closeOverlay('messageModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('messageModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
@@ -535,18 +535,18 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeOverlay('messageModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitMessage()">Send Message</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('messageModal')">Cancel</button>
+      <button class="btn btn-primary" data-onclick="submitMessage()">Send Message</button>
     </div>
   </div>
 </div>
 
 <!-- View Modal -->
-<div class="modal-overlay" id="viewModal" onclick="if(event.target===this)closeOverlay('viewModal')">
+<div class="modal-overlay" id="viewModal" data-data-onclick="onOverlayClick">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">Student Profile</div>
-      <button class="btn-icon" onclick="closeOverlay('viewModal')">
+      <button class="btn-icon" data-onclick="closeOverlay('viewModal')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>

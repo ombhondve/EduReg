@@ -1,3 +1,100 @@
+// =====================================================================
+// CSP-SAFE EVENT DISPATCHER
+// The server sends a strict Content-Security-Policy (script-src 'self',
+// no 'unsafe-inline'/'unsafe-eval'), so real onclick="..." / onchange="..."
+// HTML attributes are silently blocked by the browser. Every handler in
+// this app is now written as data-onclick="fnName(args)" (or just
+// data-onclick="fnName" for handlers that just need the element+event)
+// and dispatched here via addEventListener + direct function lookup —
+// no eval, no Function constructor, fully CSP-compliant.
+// =====================================================================
+function parseInlineArg(argStr, el, evt) {
+  argStr = argStr.trim();
+  if (argStr === 'this') return el;
+  if (argStr === 'event') return evt;
+  if (argStr === 'true') return true;
+  if (argStr === 'false') return false;
+  if (/^-?\d+(\.\d+)?$/.test(argStr)) return Number(argStr);
+  if ((argStr.startsWith("'") && argStr.endsWith("'")) || (argStr.startsWith('"') && argStr.endsWith('"'))) {
+    return argStr.slice(1, -1).replace(/\\'/g, "'").replace(/\\"/g, '"');
+  }
+  return argStr;
+}
+
+function splitTopLevelArgs(s) {
+  const args = [];
+  let cur = '', depth = 0, quote = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (quote) {
+      cur += c;
+      if (c === quote && s[i - 1] !== '\\') quote = null;
+    } else if (c === "'" || c === '"') {
+      quote = c; cur += c;
+    } else if (c === '(') { depth++; cur += c; }
+    else if (c === ')') { depth--; cur += c; }
+    else if (c === ',' && depth === 0) { args.push(cur); cur = ''; }
+    else cur += c;
+  }
+  if (cur.trim() !== '') args.push(cur);
+  return args.map(a => a.trim());
+}
+
+function runInlineExpr(expr, el, evt) {
+  if (!expr) return;
+  // Bare function name (no parens) -> call it with (el, evt), e.g. data-onclick="onDropzoneClick"
+  if (/^[a-zA-Z_$][\w$]*$/.test(expr.trim())) {
+    const fn = window[expr.trim()];
+    if (typeof fn === 'function') fn(el, evt);
+    return;
+  }
+  // One or more semicolon-separated call expressions, e.g. fnA('x'); fnB()
+  expr.split(';').map(s => s.trim()).filter(Boolean).forEach(call => {
+    const m = call.match(/^([a-zA-Z_$][\w$]*)\((.*)\)$/s);
+    if (!m) return;
+    const fn = window[m[1]];
+    if (typeof fn !== 'function') return;
+    const argsStr = m[2].trim();
+    const args = argsStr === '' ? [] : splitTopLevelArgs(argsStr).map(a => parseInlineArg(a, el, evt));
+    fn.apply(el, args);
+  });
+}
+
+const INLINE_EVENT_TYPES = ['click', 'change', 'input', 'keydown', 'mouseover', 'mouseout'];
+INLINE_EVENT_TYPES.forEach(type => {
+  document.addEventListener(type, (evt) => {
+    const attr = 'data-on' + type;
+    const el = evt.target.closest ? evt.target.closest(`[${attr}]`) : null;
+    if (!el) return;
+    runInlineExpr(el.getAttribute(attr), el, evt);
+  }, true);
+});
+
+// ---- Handlers that used to be inline JS expressions, now real functions ----
+function onOverlayClick(el, evt) {
+  if (evt.target !== el) return;
+  closeOverlay(el.id);
+}
+function onDropzoneClick(el) {
+  const input = el.nextElementSibling;
+  if (input && input.tagName === 'INPUT') input.click();
+}
+function onDocFileChosen(el) {
+  const label = document.getElementById('docFileLabel');
+  if (label) label.textContent = '📄 ' + (el.files[0]?.name || '');
+}
+function onSearchInput(el) { searchQ = el.value; currentPageNum = 1; render(); }
+function onFilterCourseChange(el) { filterCourse = el.value; currentPageNum = 1; render(); }
+function onFilterStatusChange(el) { filterStatus = el.value; currentPageNum = 1; render(); }
+function onCourseCardHover(el) { el.style.transform = 'translateY(-3px)'; }
+function onCourseCardUnhover(el) { el.style.transform = ''; }
+function onNotifTypeFilterChange(el) { notifTypeFilter = el.value; render(); }
+function onFeeStatusFilterChange(el) { feeStatusFilter = el.value; render(); }
+function onDocSearchInput(el) { docSearchQ = el.value; render(); }
+function onDocStatusFilterChange(el) { docStatusFilter = el.value; render(); }
+function onTimetableCourseFilterChange(el) { timetableCourseFilter = el.value; render(); }
+function onThreadReplyKeydown(el, evt) { if (evt.key === 'Enter') sendThreadReply(); }
+
 // ===== COURSE COLORS (used for rendering) =====
 let COURSES_COLORS = {
   'Computer Science': ['#eff6ff','#2563eb'],
@@ -227,14 +324,14 @@ async function renderDashboard(c){
       <div class="card">
         <div class="card-header">
           <div class="card-title">Recent Registrations</div>
-          <button class="btn btn-secondary btn-sm" onclick="navigate('students')">View All →</button>
+          <button class="btn btn-secondary btn-sm" data-onclick="navigate('students')">View All →</button>
         </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Student</th><th>Course</th><th>GPA</th><th>Status</th><th>Joined</th></tr></thead>
             <tbody>
               ${recent.map(s=>`
-              <tr onclick="viewStudent('${s.id}')" style="cursor:pointer">
+              <tr data-onclick="viewStudent('${s.id}')" style="cursor:pointer">
                 <td><div class="student-info">
                   <div class="student-avatar" style="background:${courseColor(s.course)[0]};color:${courseColor(s.course)[1]}">${initials(s)}</div>
                   <div><div class="student-name">${s.firstName} ${s.lastName}</div><div class="student-id">${s.id}</div></div>
@@ -301,13 +398,13 @@ async function renderStudents(c){
     <div class="toolbar">
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="Search students by name, ID, email…" value="${searchQ}" oninput="searchQ=this.value;currentPageNum=1;render()" id="searchInput">
+        <input type="text" placeholder="Search students by name, ID, email…" value="${searchQ}" data-data-oninput="onSearchInput" id="searchInput">
       </div>
-      <select onchange="filterCourse=this.value;currentPageNum=1;render()">
+      <select data-data-onchange="onFilterCourseChange">
         <option value="">All Courses</option>
         ${coursesCache.map(c=>`<option value="${escapeHtml(c.name)}" ${filterCourse===c.name?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}
       </select>
-      <select onchange="filterStatus=this.value;currentPageNum=1;render()">
+      <select data-data-onchange="onFilterStatusChange">
         <option value="">All Status</option>
         <option ${filterStatus==='Active'?'selected':''}>Active</option>
         <option ${filterStatus==='Inactive'?'selected':''}>Inactive</option>
@@ -315,8 +412,8 @@ async function renderStudents(c){
         <option ${filterStatus==='Graduated'?'selected':''}>Graduated</option>
       </select>
       <div class="view-toggle">
-        <button class="view-btn ${viewMode==='table'?'active':''}" onclick="viewMode='table';render()">☰ Table</button>
-        <button class="view-btn ${viewMode==='grid'?'active':''}" onclick="viewMode='grid';render()">⊞ Grid</button>
+        <button class="view-btn ${viewMode==='table'?'active':''}" data-onclick="viewMode='table';render()">☰ Table</button>
+        <button class="view-btn ${viewMode==='grid'?'active':''}" data-onclick="viewMode='grid';render()">⊞ Grid</button>
       </div>
       <span style="font-size:0.8rem;color:var(--text3);margin-left:auto">${total} student${total!==1?'s':''} found</span>
     </div>
@@ -355,10 +452,10 @@ function tableView(paged){
         <td style="color:var(--text2);font-size:0.82rem">${s.phone||'—'}</td>
         <td>
           <div style="display:flex;gap:6px">
-            <button class="btn-icon" title="View" onclick="viewStudent('${s.id}')">👁️</button>
-            <button class="btn-icon" title="Notify" onclick="openSendNotificationModal({audience:'student', studentId:'${s.id}', studentLabel:'${escapeHtml(s.firstName+' '+s.lastName)}'})">🔔</button>
-            <button class="btn-icon" title="Edit" onclick="openEditModal('${s.id}')">✏️</button>
-            <button class="btn-icon" title="Delete" style="border-color:#fecaca" onclick="openDelete('${s.id}')">🗑️</button>
+            <button class="btn-icon" title="View" data-onclick="viewStudent('${s.id}')">👁️</button>
+            <button class="btn-icon" title="Notify" data-onclick="openSendNotificationModal({audience:'student', studentId:'${s.id}', studentLabel:'${escapeHtml(s.firstName+' '+s.lastName)}'})">🔔</button>
+            <button class="btn-icon" title="Edit" data-onclick="openEditModal('${s.id}')">✏️</button>
+            <button class="btn-icon" title="Delete" style="border-color:#fecaca" data-onclick="openDelete('${s.id}')">🗑️</button>
           </div>
         </td>
       </tr>`).join('')}
@@ -376,10 +473,10 @@ function gridView(paged){
       ${statusBadge(s.status)}
       <div style="margin-top:10px;font-size:0.82rem;color:var(--text3)">GPA: <strong style="color:${gpaColor(s.gpa)}">${s.gpa||'—'}</strong></div>
       <div class="student-card-actions" style="margin-top:12px">
-        <button class="btn btn-secondary btn-sm" onclick="viewStudent('${s.id}')">View</button>
-        <button class="btn btn-secondary btn-sm" onclick="openSendNotificationModal({audience:'student', studentId:'${s.id}', studentLabel:'${escapeHtml(s.firstName+' '+s.lastName)}'})">🔔</button>
-        <button class="btn btn-primary btn-sm" onclick="openEditModal('${s.id}')">Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="openDelete('${s.id}')">Del</button>
+        <button class="btn btn-secondary btn-sm" data-onclick="viewStudent('${s.id}')">View</button>
+        <button class="btn btn-secondary btn-sm" data-onclick="openSendNotificationModal({audience:'student', studentId:'${s.id}', studentLabel:'${escapeHtml(s.firstName+' '+s.lastName)}'})">🔔</button>
+        <button class="btn btn-primary btn-sm" data-onclick="openEditModal('${s.id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" data-onclick="openDelete('${s.id}')">Del</button>
       </div>
     </div>`).join('')}
   </div></div>`;
@@ -387,9 +484,9 @@ function gridView(paged){
 
 function paginationHtml(totalPages){
   let html = '<div class="pagination">';
-  html += `<button class="page-btn" onclick="currentPageNum=Math.max(1,currentPageNum-1);render()" ${currentPageNum===1?'disabled':''}>‹</button>`;
-  for(let i=1;i<=totalPages;i++) html += `<button class="page-btn ${i===currentPageNum?'active':''}" onclick="currentPageNum=${i};render()">${i}</button>`;
-  html += `<button class="page-btn" onclick="currentPageNum=Math.min(${totalPages},currentPageNum+1);render()" ${currentPageNum===totalPages?'disabled':''}">›</button>`;
+  html += `<button class="page-btn" data-onclick="currentPageNum=Math.max(1,currentPageNum-1);render()" ${currentPageNum===1?'disabled':''}>‹</button>`;
+  for(let i=1;i<=totalPages;i++) html += `<button class="page-btn ${i===currentPageNum?'active':''}" data-onclick="currentPageNum=${i};render()">${i}</button>`;
+  html += `<button class="page-btn" data-onclick="currentPageNum=Math.min(${totalPages},currentPageNum+1);render()" ${currentPageNum===totalPages?'disabled':''}">›</button>`;
   return html+'</div>';
 }
 
@@ -405,7 +502,7 @@ async function renderCourses(c){
         const activeC = course.activeCount || 0;
         const avgG = course.avgGpa || '—';
         const cnt = course.studentCount || 0;
-        return `<div class="card" style="padding:1.5rem;transition:.2s;cursor:pointer" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''">
+        return `<div class="card" style="padding:1.5rem;transition:.2s;cursor:pointer" data-data-onmouseover="onCourseCardHover" data-data-onmouseout="onCourseCardUnhover">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
             <div style="width:44px;height:44px;border-radius:var(--radius);background:${bg};display:flex;align-items:center;justify-content:center;font-size:1.2rem">📚</div>
             <span class="course-tag" style="background:${bg};color:${col}">${cnt} Students</span>
@@ -633,14 +730,14 @@ async function viewStudent(id){
     <div style="margin-top:1.5rem">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="font-size:0.8rem;font-weight:600;color:var(--text2)">📁 Documents</div>
-        <button class="btn btn-secondary btn-sm" onclick="closeOverlay('viewModal');openDocumentModal('${s.id}')">+ Upload</button>
+        <button class="btn btn-secondary btn-sm" data-onclick="closeOverlay('viewModal');openDocumentModal('${s.id}')">+ Upload</button>
       </div>
       <div id="studentDocsPanel" style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;font-size:0.8rem;color:var(--text3)">Loading documents…</div>
     </div>
     <div style="display:flex;gap:10px;margin-top:1.5rem">
-      <button class="btn btn-primary" onclick="closeOverlay('viewModal');openEditModal('${s.id}')">✏️ Edit Student</button>
-      <button class="btn btn-secondary" onclick="closeOverlay('viewModal');openSendNotificationModal({audience:'student', studentId:'${s.id}', studentLabel:'${escapeHtml(s.firstName+' '+s.lastName)}'})">🔔 Notify</button>
-      <button class="btn btn-danger" onclick="closeOverlay('viewModal');openDelete('${s.id}')">🗑️ Delete</button>
+      <button class="btn btn-primary" data-onclick="closeOverlay('viewModal');openEditModal('${s.id}')">✏️ Edit Student</button>
+      <button class="btn btn-secondary" data-onclick="closeOverlay('viewModal');openSendNotificationModal({audience:'student', studentId:'${s.id}', studentLabel:'${escapeHtml(s.firstName+' '+s.lastName)}'})">🔔 Notify</button>
+      <button class="btn btn-danger" data-onclick="closeOverlay('viewModal');openDelete('${s.id}')">🗑️ Delete</button>
     </div>`;
     showModal('viewModal');
     loadStudentDocsPanel(s.id);
@@ -666,8 +763,8 @@ async function loadStudentDocsPanel(studentId){
         </div>
         <span class="status doc-status-${d.status.toLowerCase().replace(/\s+/g,'-')}"><span class="status-dot"></span>${d.status}</span>
         <div style="display:flex;gap:6px">
-          ${d.status!=='Verified'?`<button class="btn-icon" title="Verify" onclick="setDocumentStatus('${d.id}','Verified').then(()=>loadStudentDocsPanel('${studentId}'))">✅</button>`:''}
-          ${d.status!=='Rejected'?`<button class="btn-icon" title="Reject" onclick="setDocumentStatus('${d.id}','Rejected').then(()=>loadStudentDocsPanel('${studentId}'))">❌</button>`:''}
+          ${d.status!=='Verified'?`<button class="btn-icon" title="Verify" data-onclick="setDocumentStatus('${d.id}','Verified').then(()=>loadStudentDocsPanel('${studentId}'))">✅</button>`:''}
+          ${d.status!=='Rejected'?`<button class="btn-icon" title="Reject" data-onclick="setDocumentStatus('${d.id}','Rejected').then(()=>loadStudentDocsPanel('${studentId}'))">❌</button>`:''}
         </div>
       </div>`).join('');
   } catch (err) {
@@ -738,12 +835,12 @@ async function renderNotifications(c){
       <div class="stat-card"><div class="stat-icon red">⚠️</div><div><div class="stat-value">${urgentCount}</div><div class="stat-label">Warnings / Urgent</div></div></div>
     </div>
     <div class="toolbar">
-      <select onchange="notifTypeFilter=this.value;render()">
+      <select data-data-onchange="onNotifTypeFilterChange">
         <option value="">All Types</option>
         ${Object.entries(NOTIF_TYPES).map(([k,v])=>`<option value="${k}" ${notifTypeFilter===k?'selected':''}>${v.icon} ${v.label}</option>`).join('')}
       </select>
       <span style="font-size:0.8rem;color:var(--text3)">${list.length} notification${list.length!==1?'s':''}</span>
-      <button class="btn btn-primary" style="margin-left:auto" onclick="openSendNotificationModal()">
+      <button class="btn btn-primary" style="margin-left:auto" data-onclick="openSendNotificationModal()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         Send Notification
       </button>
@@ -775,8 +872,8 @@ function notifCardHtml(n){
       </div>
     </div>
     <div class="notif-card-actions">
-      <button class="btn-icon" title="Resend" onclick="resendNotification('${n.id}')">🔁</button>
-      <button class="btn-icon" title="Delete" style="border-color:#fecaca" onclick="deleteNotificationConfirm('${n.id}')">🗑️</button>
+      <button class="btn-icon" title="Resend" data-onclick="resendNotification('${n.id}')">🔁</button>
+      <button class="btn-icon" title="Delete" style="border-color:#fecaca" data-onclick="deleteNotificationConfirm('${n.id}')">🗑️</button>
     </div>
   </div>`;
 }
@@ -983,7 +1080,7 @@ async function renderAttendance(c){
   </div>
   <div class="toolbar">
     <span style="font-size:0.8rem;color:var(--text3)">${totalSessions} attendance record${totalSessions!==1?'s':''}</span>
-    <button class="btn btn-primary" style="margin-left:auto" onclick="openAttendanceModal()">
+    <button class="btn btn-primary" style="margin-left:auto" data-onclick="openAttendanceModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
       Mark Attendance
     </button>
@@ -997,7 +1094,7 @@ async function renderAttendance(c){
         <td><span class="course-tag" style="background:${courseColor(r.course)[0]};color:${courseColor(r.course)[1]}">${r.course}</span></td>
         <td>${r.present}</td><td>${r.absent}</td><td>${r.late}</td>
         <td><strong style="color:${r.presentPct>=75?'#16a34a':'#dc2626'}">${r.presentPct}%</strong></td>
-        <td><button class="btn-icon" title="Delete" onclick="deleteAttendanceRecord('${r.id}')">🗑️</button></td>
+        <td><button class="btn-icon" title="Delete" data-onclick="deleteAttendanceRecord('${r.id}')">🗑️</button></td>
       </tr>`).join('')}</tbody>
     </table></div>`}
   </div>`;
@@ -1026,9 +1123,9 @@ async function loadAttendanceStudentList(){
     <div class="att-row" data-student-id="${s.id}">
       <span>${escapeHtml(s.firstName+' '+s.lastName)}</span>
       <div class="att-choice">
-        <button type="button" class="att-btn present active" onclick="setAttChoice('${s.id}','present',this)">Present</button>
-        <button type="button" class="att-btn late" onclick="setAttChoice('${s.id}','late',this)">Late</button>
-        <button type="button" class="att-btn absent" onclick="setAttChoice('${s.id}','absent',this)">Absent</button>
+        <button type="button" class="att-btn present active" data-onclick="setAttChoice('${s.id}','present',this)">Present</button>
+        <button type="button" class="att-btn late" data-onclick="setAttChoice('${s.id}','late',this)">Late</button>
+        <button type="button" class="att-btn absent" data-onclick="setAttChoice('${s.id}','absent',this)">Absent</button>
       </div>
     </div>`).join('');
 }
@@ -1086,12 +1183,12 @@ function renderFees(c){
     <div class="stat-card"><div class="stat-icon blue">🧾</div><div><div class="stat-value">${feeRecords.length}</div><div class="stat-label">Total Records</div></div></div>
   </div>
   <div class="toolbar">
-    <select onchange="feeStatusFilter=this.value;render()">
+    <select data-data-onchange="onFeeStatusFilterChange">
       <option value="">All Statuses</option>
       ${['Paid','Partial','Unpaid','Overdue'].map(s=>`<option ${feeStatusFilter===s?'selected':''}>${s}</option>`).join('')}
     </select>
     <span style="font-size:0.8rem;color:var(--text3)">${filtered.length} record${filtered.length!==1?'s':''}</span>
-    <button class="btn btn-primary" style="margin-left:auto" onclick="openFeeModal()">
+    <button class="btn btn-primary" style="margin-left:auto" data-onclick="openFeeModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Record Payment
     </button>
@@ -1107,8 +1204,8 @@ function renderFees(c){
         <td><span class="status fee-status-${f.status.toLowerCase()}"><span class="status-dot"></span>${f.status}</span></td>
         <td style="color:var(--text3);font-size:0.8rem">${f.dueDate?formatDate(f.dueDate):'—'}</td>
         <td><div style="display:flex;gap:6px">
-          <button class="btn-icon" title="Edit" onclick="openFeeModal('${f.id}')">✏️</button>
-          <button class="btn-icon" title="Delete" style="border-color:#fecaca" onclick="deleteFeeRecord('${f.id}')">🗑️</button>
+          <button class="btn-icon" title="Edit" data-onclick="openFeeModal('${f.id}')">✏️</button>
+          <button class="btn-icon" title="Delete" style="border-color:#fecaca" data-onclick="deleteFeeRecord('${f.id}')">🗑️</button>
         </div></td>
       </tr>`).join('')}</tbody>
     </table></div>`}
@@ -1200,14 +1297,14 @@ async function renderDocuments(c){
     <div class="toolbar">
       <div class="search-box">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="Search by student name or ID…" value="${escapeHtml(docSearchQ)}" oninput="docSearchQ=this.value;render()">
+        <input type="text" placeholder="Search by student name or ID…" value="${escapeHtml(docSearchQ)}" data-data-oninput="onDocSearchInput">
       </div>
-      <select onchange="docStatusFilter=this.value;render()">
+      <select data-data-onchange="onDocStatusFilterChange">
         <option value="">All Statuses</option>
         ${['Pending Review','Verified','Rejected'].map(s=>`<option ${docStatusFilter===s?'selected':''}>${s}</option>`).join('')}
       </select>
       <span style="font-size:0.8rem;color:var(--text3)">${groups.length} student${groups.length!==1?'s':''} · ${docs.length} document${docs.length!==1?'s':''}</span>
-      <button class="btn btn-primary" style="margin-left:auto" onclick="openDocumentModal()">
+      <button class="btn btn-primary" style="margin-left:auto" data-onclick="openDocumentModal()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Document
       </button>
@@ -1243,7 +1340,7 @@ function renderDocGroup(g){
   const rejected = g.docs.filter(d=>d.status==='Rejected').length;
   return `
   <div class="doc-group" style="border-bottom:1px solid var(--border)">
-    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer" onclick="toggleDocGroup('${key}')">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:pointer" data-onclick="toggleDocGroup('${key}')">
       <span style="font-size:0.75rem;color:var(--text3);width:12px">${isOpen?'▾':'▸'}</span>
       <div style="width:36px;height:36px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.75rem;color:var(--text2);flex-shrink:0">${docInitials(g.studentName)}</div>
       <div style="flex:1;min-width:0">
@@ -1265,9 +1362,9 @@ function renderDocGroup(g){
           <td style="color:var(--text3);font-size:0.8rem">${formatDate(d.uploadedAt)}</td>
           <td><span class="status doc-status-${d.status.toLowerCase().replace(/\s+/g,'-')}"><span class="status-dot"></span>${d.status}</span></td>
           <td><div style="display:flex;gap:6px">
-            ${d.status!=='Verified'?`<button class="btn-icon" title="Verify" onclick="event.stopPropagation();setDocumentStatus('${d.id}','Verified')">✅</button>`:''}
-            ${d.status!=='Rejected'?`<button class="btn-icon" title="Reject" onclick="event.stopPropagation();setDocumentStatus('${d.id}','Rejected')">❌</button>`:''}
-            <button class="btn-icon" title="Delete" style="border-color:#fecaca" onclick="event.stopPropagation();deleteDocumentRecord('${d.id}')">🗑️</button>
+            ${d.status!=='Verified'?`<button class="btn-icon" title="Verify" data-onclick="event.stopPropagation();setDocumentStatus('${d.id}','Verified')">✅</button>`:''}
+            ${d.status!=='Rejected'?`<button class="btn-icon" title="Reject" data-onclick="event.stopPropagation();setDocumentStatus('${d.id}','Rejected')">❌</button>`:''}
+            <button class="btn-icon" title="Delete" style="border-color:#fecaca" data-onclick="event.stopPropagation();deleteDocumentRecord('${d.id}')">🗑️</button>
           </div></td>
         </tr>`).join('')}</tbody>
       </table>
@@ -1344,12 +1441,12 @@ function renderTimetable(c){
 
   c.innerHTML = `
   <div class="toolbar">
-    <select onchange="timetableCourseFilter=this.value;render()">
+    <select data-data-onchange="onTimetableCourseFilterChange">
       <option value="">All Courses</option>
       ${coursesCache.map(c=>`<option value="${escapeHtml(c.name)}" ${timetableCourseFilter===c.name?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}
     </select>
     <span style="font-size:0.8rem;color:var(--text3)">${filtered.length} class${filtered.length!==1?'es':''} scheduled</span>
-    <button class="btn btn-primary" style="margin-left:auto" onclick="openTimetableModal()">
+    <button class="btn btn-primary" style="margin-left:auto" data-onclick="openTimetableModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Entry
     </button>
@@ -1364,7 +1461,7 @@ function renderTimetable(c){
             <div class="tt-slot-time">${t.start}–${t.end}</div>
             <div class="tt-slot-subject">${escapeHtml(t.subject)}</div>
             <div class="tt-slot-meta">${t.room||'—'}${t.faculty?' · '+escapeHtml(t.faculty):''}</div>
-            <div style="margin-top:6px"><button class="btn-icon" style="width:24px;height:24px;padding:0" title="Remove" onclick="deleteTimetableEntry('${t.id}')">🗑️</button></div>
+            <div style="margin-top:6px"><button class="btn-icon" style="width:24px;height:24px;padding:0" title="Remove" data-onclick="deleteTimetableEntry('${t.id}')">🗑️</button></div>
           </div>`).join('')}
       </div>`;
     }).join('')}
@@ -1416,11 +1513,11 @@ function renderImport(c){
       Expected columns: <code>firstName, lastName, email, phone, course, year, gpa, status</code>.
     </p>
     <div style="display:flex;gap:10px;margin-top:1rem">
-      <button class="btn btn-primary" onclick="document.getElementById('importFileInput').click();openOverlayOnly('importModal')">
+      <button class="btn btn-primary" data-onclick="document.getElementById('importFileInput').click();openOverlayOnly('importModal')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import from CSV
       </button>
-      <button class="btn btn-secondary" onclick="downloadTextFile('student_import_template.csv','firstName,lastName,email,phone,course,year,gpa,status\\n')">
+      <button class="btn btn-secondary" data-onclick="downloadTextFile('student_import_template.csv','firstName,lastName,email,phone,course,year,gpa,status\\n')">
         Download Template
       </button>
     </div>
@@ -1481,7 +1578,7 @@ function renderRoles(c){
   c.innerHTML = `
   <div class="toolbar">
     <span style="font-size:0.8rem;color:var(--text3)">${staffRoles.length} staff member${staffRoles.length!==1?'s':''}</span>
-    <button class="btn btn-primary" style="margin-left:auto" onclick="openRoleModal()">
+    <button class="btn btn-primary" style="margin-left:auto" data-onclick="openRoleModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Staff Member
     </button>
@@ -1496,8 +1593,8 @@ function renderRoles(c){
       <span class="role-pill">${r.role}</span>
       ${statusBadge(r.status==='Active'?'Active':(r.status==='Invited'?'Pending':'Inactive'))}
       <div style="display:flex;gap:6px">
-        <button class="btn-icon" title="Edit" onclick="openRoleModal('${r.id}')">✏️</button>
-        <button class="btn-icon" title="Remove" style="border-color:#fecaca" onclick="deleteRole('${r.id}')">🗑️</button>
+        <button class="btn-icon" title="Edit" data-onclick="openRoleModal('${r.id}')">✏️</button>
+        <button class="btn-icon" title="Remove" style="border-color:#fecaca" data-onclick="deleteRole('${r.id}')">🗑️</button>
       </div>
     </div>`).join('')}
   </div>`;
@@ -1569,7 +1666,7 @@ function renderReports(c){
       <div style="font-size:1.6rem;margin-bottom:8px">${r.icon}</div>
       <div class="student-card-name">${r.title}</div>
       <div style="font-size:0.82rem;color:var(--text2);margin:6px 0 14px">${r.desc}</div>
-      <button class="btn btn-primary btn-sm" onclick="generateReport('${r.id}')">⬇️ Generate CSV</button>
+      <button class="btn btn-primary btn-sm" data-onclick="generateReport('${r.id}')">⬇️ Generate CSV</button>
     </div>`).join('')}
   </div>
   <p style="color:var(--text3);font-size:0.78rem;margin-top:1rem">
@@ -1633,7 +1730,7 @@ function renderCalendar(c){
   c.innerHTML = `
   <div class="toolbar">
     <span style="font-size:0.8rem;color:var(--text3)">${upcoming} upcoming event${upcoming!==1?'s':''} · ${calendarEvents.length} total</span>
-    <button class="btn btn-primary" style="margin-left:auto" onclick="openEventModal()">
+    <button class="btn btn-primary" style="margin-left:auto" data-onclick="openEventModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add Event
     </button>
@@ -1651,7 +1748,7 @@ function renderCalendar(c){
           </div>
           <div style="font-size:0.82rem;color:var(--text2);margin-top:4px">${escapeHtml(e.description||'')}</div>
         </div>
-        <button class="btn-icon" title="Delete" style="border-color:#fecaca" onclick="deleteEvent('${e.id}')">🗑️</button>
+        <button class="btn-icon" title="Delete" style="border-color:#fecaca" data-onclick="deleteEvent('${e.id}')">🗑️</button>
       </div>`;
     }).join('')}
   </div>`;
@@ -1694,7 +1791,7 @@ async function renderMessages(c){
   c.innerHTML = `
   <div class="toolbar">
     <span style="font-size:0.8rem;color:var(--text3)">${messageThreads.length} conversation${messageThreads.length!==1?'s':''}</span>
-    <button class="btn btn-primary" style="margin-left:auto" onclick="openMessageModal()">
+    <button class="btn btn-primary" style="margin-left:auto" data-onclick="openMessageModal()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New Message
     </button>
@@ -1702,7 +1799,7 @@ async function renderMessages(c){
   <div class="card" style="display:grid;grid-template-columns:280px 1fr;min-height:420px;overflow:hidden">
     <div style="border-right:1px solid var(--border);overflow-y:auto">
       ${messageThreads.length===0 ? `<div class="notif-empty">No conversations yet</div>` :
-      messageThreads.map(t=>`<div class="msg-thread ${t.studentId===activeThreadStudentId?'active':''}" style="${t.studentId===activeThreadStudentId?'background:var(--surface2)':''}" onclick="activeThreadStudentId='${t.studentId}';render()">
+      messageThreads.map(t=>`<div class="msg-thread ${t.studentId===activeThreadStudentId?'active':''}" style="${t.studentId===activeThreadStudentId?'background:var(--surface2)':''}" data-onclick="activeThreadStudentId='${t.studentId}';render()">
         <div class="avatar" style="background:var(--accent2);width:32px;height:32px;font-size:0.7rem">${initialsFromName(t.studentName)}</div>
         <div style="min-width:0">
           <div style="font-weight:600;font-size:0.85rem">${escapeHtml(t.studentName)}</div>
@@ -1727,8 +1824,8 @@ function renderActiveThread(){
     ${thread.messages.map(m=>`<div class="msg-bubble ${m.from==='staff'?'out':'in'}">${escapeHtml(m.text)}</div>`).join('')}
   </div>
   <div style="padding:1rem;border-top:1px solid var(--border);display:flex;gap:8px">
-    <input type="text" id="threadReplyInput" placeholder="Type a reply…" onkeydown="if(event.key==='Enter')sendThreadReply()">
-    <button class="btn btn-primary btn-sm" onclick="sendThreadReply()">Send</button>
+    <input type="text" id="threadReplyInput" placeholder="Type a reply…" data-data-onkeydown="onThreadReplyKeydown">
+    <button class="btn btn-primary btn-sm" data-onclick="sendThreadReply()">Send</button>
   </div>`;
 }
 
@@ -1788,16 +1885,16 @@ function renderSettings(c){
     </div>
     <div class="settings-section">
       <div class="form-section-title">Notification Preferences</div>
-      <div class="settings-row"><span>Email notifications for staff</span><div class="toggle-switch ${appSettings.emailNotifs?'on':''}" onclick="toggleSetting('emailNotifs',this)"></div></div>
-      <div class="settings-row"><span>SMS alerts for urgent notices</span><div class="toggle-switch ${appSettings.smsAlerts?'on':''}" onclick="toggleSetting('smsAlerts',this)"></div></div>
-      <div class="settings-row"><span>Weekly summary digest</span><div class="toggle-switch ${appSettings.weeklyDigest?'on':''}" onclick="toggleSetting('weeklyDigest',this)"></div></div>
+      <div class="settings-row"><span>Email notifications for staff</span><div class="toggle-switch ${appSettings.emailNotifs?'on':''}" data-onclick="toggleSetting('emailNotifs',this)"></div></div>
+      <div class="settings-row"><span>SMS alerts for urgent notices</span><div class="toggle-switch ${appSettings.smsAlerts?'on':''}" data-onclick="toggleSetting('smsAlerts',this)"></div></div>
+      <div class="settings-row"><span>Weekly summary digest</span><div class="toggle-switch ${appSettings.weeklyDigest?'on':''}" data-onclick="toggleSetting('weeklyDigest',this)"></div></div>
     </div>
     <div class="settings-section">
       <div class="form-section-title">Document Handling</div>
-      <div class="settings-row"><span>Auto-verify documents on upload</span><div class="toggle-switch ${appSettings.autoVerifyDocs?'on':''}" onclick="toggleSetting('autoVerifyDocs',this)"></div></div>
+      <div class="settings-row"><span>Auto-verify documents on upload</span><div class="toggle-switch ${appSettings.autoVerifyDocs?'on':''}" data-onclick="toggleSetting('autoVerifyDocs',this)"></div></div>
     </div>
     <div class="settings-section">
-      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+      <button class="btn btn-primary" data-onclick="saveSettings()">Save Settings</button>
     </div>
   </div>
   <p style="color:var(--text3);font-size:0.78rem">Settings are stored locally for this session. Wire this up to a <code>/settings</code> endpoint to persist across staff and devices.</p>`;

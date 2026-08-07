@@ -117,28 +117,28 @@ TENANT_TABLE_STATEMENTS = [
         audience_value VARCHAR(150) DEFAULT NULL,
         student_id INT DEFAULT NULL,
         recipient_count INT DEFAULT 0,
-        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS attendance_records (
+    CREATE TABLE IF NOT EXISTS attendance (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        course VARCHAR(150) NOT NULL,
-        record_date DATE NOT NULL,
-        present INT NOT NULL DEFAULT 0,
-        absent INT NOT NULL DEFAULT 0,
-        late INT NOT NULL DEFAULT 0,
-        present_pct INT NOT NULL DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        student_id INT NOT NULL,
+        course_id INT DEFAULT NULL,
+        date DATE NOT NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'Present',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS fee_records (
+    CREATE TABLE IF NOT EXISTS fees (
         id INT AUTO_INCREMENT PRIMARY KEY,
         student_id INT DEFAULT NULL,
-        student_name VARCHAR(200) NOT NULL,
-        fee_type VARCHAR(80) NOT NULL,
+        student_name VARCHAR(200) DEFAULT NULL,
+        fee_type VARCHAR(80) DEFAULT NULL,
         amount DECIMAL(12,2) NOT NULL DEFAULT 0,
         status VARCHAR(40) NOT NULL DEFAULT 'Pending',
         due_date DATE DEFAULT NULL,
@@ -148,16 +148,30 @@ TENANT_TABLE_STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS timetable_entries (
+    CREATE TABLE IF NOT EXISTS staff (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        course VARCHAR(150) NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        email VARCHAR(150) NOT NULL UNIQUE,
+        phone VARCHAR(30) DEFAULT NULL,
+        designation VARCHAR(120) DEFAULT NULL,
+        department VARCHAR(120) DEFAULT NULL,
+        status VARCHAR(40) NOT NULL DEFAULT 'Active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS timetable (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        course_id INT DEFAULT NULL,
         day VARCHAR(20) NOT NULL,
         start_time TIME NOT NULL,
         end_time TIME NOT NULL,
         subject VARCHAR(150) NOT NULL,
         room VARCHAR(80) DEFAULT NULL,
-        faculty VARCHAR(120) DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        staff_id INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL,
+        FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
     )
     """,
     """
@@ -165,7 +179,7 @@ TENANT_TABLE_STATEMENTS = [
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(200) NOT NULL,
         event_date DATE NOT NULL,
-        category VARCHAR(50) NOT NULL DEFAULT 'Event',
+        event_type VARCHAR(50) NOT NULL DEFAULT 'General',
         description TEXT DEFAULT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
@@ -182,18 +196,7 @@ TENANT_TABLE_STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS staff_roles (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(150) NOT NULL,
-        email VARCHAR(150) NOT NULL UNIQUE,
-        role VARCHAR(80) NOT NULL DEFAULT 'Staff',
-        status VARCHAR(40) NOT NULL DEFAULT 'Active',
-        permissions JSON,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """,
-    """
-    CREATE TABLE IF NOT EXISTS activity_logs (
+    CREATE TABLE IF NOT EXISTS activity_log (
         id INT AUTO_INCREMENT PRIMARY KEY,
         actor VARCHAR(150) NOT NULL,
         action VARCHAR(150) NOT NULL,

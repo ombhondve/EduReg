@@ -1,10 +1,12 @@
 from flask import jsonify
 from shared.model import controller
-
+import pymysql, os
+from pymysql import cursors
+from services.tenant_provisioning import tenant_db_name
 
 class collage_models(controller):
     """Data layer for a single college/organization's own dashboard
-    (students, courses, documents, attendance, fees, timetable, calendar,
+    (students, courses, documents, attendance, fee_records, timetable, calendar,
     messages, staff, notifications, activity log).
 
     Every public method below is a thin, purpose-specific wrapper around
@@ -12,9 +14,29 @@ class collage_models(controller):
     endpoints only ever need a SQL string, not new plumbing.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, organization_id=None):
+        if organization_id is None:
+            # No tenant context — don't silently fall back to a shared/
+            # default database. Every caller of collage_models must know
+            # which college it's acting on.
+            raise ValueError("collage_models requires an organization_id")
 
+        self.conn = pymysql.connect(
+            host=os.getenv("host"),
+            user=os.getenv("user"),
+            password=os.getenv("password"),
+            database=tenant_db_name(organization_id),
+            cursorclass=cursors.DictCursor,
+            autocommit=False,
+        )
+        self.cur = self.conn.cursor()
+
+    def close(self):
+        for closer in (self.cur, self.conn):
+            try:
+                closer.close()
+            except Exception:
+                pass
     # ------------------------------------------------------------------
     # Generic helpers — every other method in this class is built on these.
     # ------------------------------------------------------------------
@@ -93,8 +115,8 @@ class collage_models(controller):
         active_students = self._query_one("SELECT COUNT(*) AS c FROM students WHERE status='Active'") or {"c": 0}
         total_courses = self._query_one("SELECT COUNT(*) AS c FROM courses") or {"c": 0}
         pending_docs = self._query_one("SELECT COUNT(*) AS c FROM documents WHERE status='Pending Review'") or {"c": 0}
-        unpaid_fees = self._query_one("SELECT COUNT(*) AS c FROM fees WHERE status!='Paid'") or {"c": 0}
-        fees_collected = self._query_one("SELECT COALESCE(SUM(amount),0) AS s FROM fees WHERE status='Paid'") or {"s": 0}
+        unpaid_fees = self._query_one("SELECT COUNT(*) AS c FROM fee_records WHERE status!='Paid'") or {"c": 0}
+        fees_collected = self._query_one("SELECT COALESCE(SUM(amount),0) AS s FROM fee_records WHERE status='Paid'") or {"s": 0}
         upcoming_events = self._query_one(
             "SELECT COUNT(*) AS c FROM calendar_events WHERE event_date >= CURDATE()"
         ) or {"c": 0}
@@ -226,7 +248,7 @@ class collage_models(controller):
         )
         by_status = self._query_all("SELECT status, COUNT(*) AS c FROM students GROUP BY status")
         avg_gpa = self._query_one("SELECT AVG(gpa) AS a FROM students WHERE gpa IS NOT NULL") or {"a": 0}
-        fees_by_status = self._query_all("SELECT status, COALESCE(SUM(amount),0) AS total FROM fees GROUP BY status")
+        fees_by_status = self._query_all("SELECT status, COALESCE(SUM(amount),0) AS total FROM fee_records GROUP BY status")
 
         return {
             "enrollmentByCourse": by_course,
@@ -361,7 +383,7 @@ class collage_models(controller):
         return self._query_all(
             """
             SELECT f.*, CONCAT(s.firstName, ' ', s.lastName) AS studentName
-            FROM fees f
+            FROM fee_records f
             LEFT JOIN students s ON s.id = f.student_id
             ORDER BY f.due_date DESC
             """
@@ -369,14 +391,14 @@ class collage_models(controller):
 
     def add_fee(self, data):
         row = self._execute(
-            "INSERT INTO fees (student_id, amount, due_date, status) VALUES (%s, %s, %s, %s)",
+            "INSERT INTO fee_records (student_id, amount, due_date, status) VALUES (%s, %s, %s, %s)",
             (data.get("studentId"), data.get("amount"), data.get("dueDate"), data.get("status", "Pending")),
-            return_row_query="SELECT * FROM fees WHERE id = LAST_INSERT_ID()",
+            return_row_query="SELECT * FROM fee_records WHERE id = LAST_INSERT_ID()",
         )
         return row or {"error": "Failed to add fee record"}
 
     def delete_fee(self, fee_id):
-        return self._execute("DELETE FROM fees WHERE id=%s", (fee_id,))
+        return self._execute("DELETE FROM fee_records WHERE id=%s", (fee_id,))
 
     # ------------------------------------------------------------------
     # Timetable

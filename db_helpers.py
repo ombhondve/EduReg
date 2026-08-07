@@ -1,5 +1,6 @@
 # db_helpers.py
 from flask import g
+from flask import g, request
 from shared.model import controller
 from superadmin_Dash_APIs.model import superadmin_models
 from collage_Dash_APIs.model import collage_models
@@ -14,7 +15,13 @@ def get_superadmin_db():
 
 def get_collage_db():
     if 'obj_col' not in g:
-        g.obj_col = collage_models()
+        org_id = (getattr(request, 'auth_user', None) or {}).get('organization_id')
+        if not org_id:
+            # super_admin tokens don't carry organization_id — see note below
+            org_id = request.args.get('org_id') or request.view_args and request.view_args.get('org_id')
+        if not org_id:
+            raise ValueError("No organization_id available to resolve tenant database")
+        g.obj_col = collage_models(organization_id=org_id)
     return g.obj_col
 
 def get_student_db():

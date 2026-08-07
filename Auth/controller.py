@@ -20,13 +20,11 @@ REFRESH_TOKEN_TTL = datetime.timedelta(days=7)
 # JWT helpers — shared by every route below, and importable by other
 # blueprints that want to verify who's calling (see token_required).
 # ----------------------------------------------------------------------
-
 def _issue_tokens(claims):
-    """claims must include at least id/email/role. Returns (accessToken, refreshToken)."""
     now = datetime.datetime.utcnow()
     access_payload = {**claims, "type": "access", "iat": now, "exp": now + ACCESS_TOKEN_TTL}
     refresh_payload = {
-        "id": claims.get("id"), "role": claims.get("role"),
+        **claims,                     # keep everything, not just id/role
         "type": "refresh", "iat": now, "exp": now + REFRESH_TOKEN_TTL,
     }
     access_token = jwt.encode(access_payload, SECRET_KEY, algorithm="HS256")
@@ -115,6 +113,7 @@ def _as_list(value):
 
 @Auth_bp.route('/auth/login', methods=['POST'])
 def login():
+    
     search_obj = get_search_db()
     data = request.get_json(silent=True) or {}
     email = data.get('email')
@@ -130,6 +129,7 @@ def login():
         table_name, col_name, login_role = "organization_admins", "admin_email", "college_admin"
 
     user = search_obj.fetch_user_by_any(table_name, col_name, email)
+    print(user)
     if not user:
         return jsonify({"success": False, "message": "Invalid email or password"}), 401
 
@@ -139,7 +139,11 @@ def login():
 
     display_name = user.get("admin_name") or f"{user.get('firstName', '')} {user.get('lastName', '')}".strip()
     access_token, refresh_token = _issue_tokens({
-        "id": user.get("id"), "email": email, "role": login_role, "name": display_name,
+        "id": user.get("id"),
+        "email": email,
+        "role": login_role,
+        "name": display_name,
+        "organization_id": user.get("organization_id")
     })
     return jsonify({
         "success": True,
@@ -267,9 +271,10 @@ def refresh():
     if payload.get("type") != "refresh":
         return jsonify({"error": "Invalid token type"}), 401
 
-    access_token, _ = _issue_tokens({"id": payload.get("id"), "role": payload.get("role")})
+    # forward every claim from the refresh token except its own type/iat/exp
+    claims = {k: v for k, v in payload.items() if k not in ("type", "iat", "exp")}
+    access_token, _ = _issue_tokens(claims)
     return jsonify({"accessToken": access_token}), 200
-
 
 @Auth_bp.route('/auth/logout', methods=['POST'])
 def logout():

@@ -1,5 +1,4 @@
 from flask import Flask, render_template
-
 from extensions import limiter
 from superadmin_Dash_APIs.controller import superadmin_bp
 from collage_Dash_APIs.controller import collage_bp
@@ -11,7 +10,7 @@ from db_helpers import close_db
 app = Flask(__name__)
 SECRET_KEY = os.getenv("JWT_SECRET")
 
-# --- Hard fail fast if the app is misconfigured -----------------------
+#------------------ Hard fail fast if the app is misconfigured ---------------------
 if not SECRET_KEY:
     raise RuntimeError(
         "JWT_SECRET is not set. Configure it via environment variables "

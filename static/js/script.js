@@ -1899,7 +1899,3 @@ if (initSidebarUser()) {
   refreshNotifBell();
   setInterval(refreshNotifBell, 60000);
 }
-
-
-
-

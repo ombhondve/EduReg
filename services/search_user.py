@@ -4,7 +4,7 @@ from shared.model import controller
 from dotenv import load_dotenv
 import os
 
-load_dotenv("env.env")
+load_dotenv(".env")
 class search_class(controller):
     def __init__(self):
         super().__init__()

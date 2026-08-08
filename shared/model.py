@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 import os
 import json
 
-from services.tenant_provisioning import TENANT_TABLE_STATEMENTS, DEFAULT_COURSES
-
 load_dotenv(".env")
 _CORE_SCHEMA_READY = False
 pool = PooledDB(
@@ -21,6 +19,93 @@ pool = PooledDB(
     database=os.getenv("database"),
     cursorclass=cursors.DictCursor,
 )
+
+CORE_TABLE_STATEMENTS = [
+        """
+        CREATE TABLE IF NOT EXISTS organizations (
+            organization_id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            subdomain VARCHAR(100) NOT NULL UNIQUE,
+            type VARCHAR(50) NOT NULL,
+            website VARCHAR(255) DEFAULT NULL,
+            address TEXT DEFAULT NULL,
+            city VARCHAR(100) DEFAULT NULL,
+            country VARCHAR(100) DEFAULT NULL,
+            timezone VARCHAR(100) DEFAULT NULL,
+            notes TEXT DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS organization_admins (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            organization_id INT NOT NULL,
+            admin_name VARCHAR(150) NOT NULL,
+            admin_title VARCHAR(100) DEFAULT NULL,
+            admin_email VARCHAR(150) NOT NULL UNIQUE,
+            admin_phone VARCHAR(20) DEFAULT NULL,
+            reset_token VARCHAR(255) DEFAULT NULL,
+            token_expiry DATETIME DEFAULT NULL,
+            hashed_password VARCHAR(255) DEFAULT NULL,
+            CONSTRAINT fk_org_admins_org
+                FOREIGN KEY (organization_id) REFERENCES organizations(organization_id)
+                ON DELETE CASCADE
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS organization_plans (
+            plan_id INT AUTO_INCREMENT PRIMARY KEY,
+            organization_id INT NOT NULL,
+            plan VARCHAR(50) NOT NULL,
+            billing_cycle ENUM('Monthly','Quarterly','Yearly') NOT NULL,
+            max_students INT DEFAULT 0,
+            max_staff INT DEFAULT 0,
+            storage_gb INT DEFAULT 0,
+            status ENUM('Active','Inactive','Suspended') DEFAULT 'Active',
+            notes VARCHAR(255) DEFAULT NULL,
+            CONSTRAINT fk_org_plans_org
+                FOREIGN KEY (organization_id) REFERENCES organizations(organization_id)
+                ON DELETE CASCADE
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS employees (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            email VARCHAR(150) NOT NULL UNIQUE,
+            phone VARCHAR(20) DEFAULT NULL,
+            employee_id VARCHAR(30) UNIQUE DEFAULT NULL,
+            designation VARCHAR(100) DEFAULT NULL,
+            department ENUM('Engineering','Support','Sales','Operations','Finance','HR') NOT NULL,
+            employment_type ENUM('Full-time','Part-time','Contractor','Intern') NOT NULL DEFAULT 'Full-time',
+            roles JSON NOT NULL,
+            pages JSON NOT NULL,
+            status ENUM('Invited','Active','Suspended') NOT NULL DEFAULT 'Invited',
+            hashed_password VARCHAR(255) DEFAULT NULL,
+            reset_token VARCHAR(255) UNIQUE DEFAULT NULL,
+            invited_at DATETIME DEFAULT NULL,
+            joined_at DATETIME DEFAULT NULL,
+            notes TEXT DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            token_expiry VARCHAR(255) DEFAULT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS student_directory (
+            email VARCHAR(150) PRIMARY KEY,
+            organization_id INT NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS student_directory (
+            email VARCHAR(150) PRIMARY KEY,
+            organization_id INT NOT NULL
+        )
+        """,
+    ]
+
+
 class controller:
     def __init__(self):
         self.DB_connections()
@@ -38,24 +123,15 @@ class controller:
         self.cur.close()
         self.conn.close()
 
+
     def ensure_core_schema(self):
-        # Table definitions live in services/tenant_provisioning.py — the
-        # same list is used to build each new college's own dedicated
-        # database (edureg_org_{organization_id}), so there's a single
-        # source of truth for the tenant schema instead of two copies that
-        # can drift apart.
+    # Central-only tables for the `organization` database. Tenant schema
+    # (students, courses, documents, ...) lives in each college's own
+    # edureg_org_{organization_id} database — see tenant_provisioning.py.
+    # These two lists must never be mixed.
         try:
-            for statement in TENANT_TABLE_STATEMENTS:
+            for statement in CORE_TABLE_STATEMENTS:
                 self.cur.execute(statement)
-            self.cur.execute("SELECT COUNT(*) AS total FROM courses")
-            if (self.cur.fetchone() or {}).get("total", 0) == 0:
-                self.cur.executemany(
-                    """
-                    INSERT INTO courses (name, course_code, duration, status)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    DEFAULT_COURSES,
-                )
             self.conn.commit()
         except Exception as e:
             print(f"Error ensuring core schema: {e}")

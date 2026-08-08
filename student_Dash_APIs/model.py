@@ -10,8 +10,13 @@ class student_models(controller):
     truth instead of a parallel copy.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, organization_id=None):
+        if organization_id is None:
+            # Same guard as collage_models — a student row only means
+            # anything inside its owning tenant's database, so never
+            # silently fall back to a shared/default connection.
+            raise ValueError("student_models requires an organization_id")
+        super().__init__(organization_id=organization_id)
 
     # ------------------------------------------------------------------
     # Generic helpers (same small trio used by collage_models)

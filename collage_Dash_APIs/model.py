@@ -3,7 +3,7 @@ from shared.model import controller
 import pymysql, os
 from pymysql import cursors
 from services.tenant_provisioning import tenant_db_name
-
+from services.search_user import search_class
 class collage_models(controller):
     """Data layer for a single college/organization's own dashboard
     (students, courses, documents, attendance, fee_records, timetable, calendar,
@@ -186,6 +186,22 @@ class collage_models(controller):
         )
         if not row:
             return jsonify({"error": "Failed to add student"}), 500
+        try:
+            directory = search_class()
+            directory.cur.execute(
+                """
+                INSERT INTO student_directory (organization_id, name, email, status)
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE organization_id=VALUES(organization_id), name=VALUES(name)
+                """,
+                (self.organization_id, f"{data.get('firstName','')} {data.get('lastName','')}".strip(),
+                data.get('email'), data.get('status', 'Active')),
+            )
+            directory.conn.commit()
+            directory.close()
+        except Exception as e:
+            print(f"Failed to sync student_directory: {e}")
+
         return self.fetch_student_data(row if isinstance(row, int) else row.get("id"))
 
     def update_student(self, student_id, data):

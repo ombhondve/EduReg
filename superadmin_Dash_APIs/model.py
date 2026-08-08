@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import jsonify
 from shared.model import controller
 from services.tenant_provisioning import create_tenant_database
-
+from services.tenant_provisioning import drop_tenant_database
 # Static price-per-plan used only to compute MRR for the dashboard.
 # Adjust to your real pricing — this is not stored anywhere in the DB.
 PLAN_PRICES = {
@@ -320,6 +320,7 @@ class superadmin_models(controller):
             self.cur.execute("DELETE FROM organization_plans WHERE organization_id=%s", (school_id,))
             self.cur.execute("DELETE FROM organizations WHERE organization_id=%s", (school_id,))
             self.conn.commit()
+            drop_tenant_database(school_id)   # after commit succeeds
             return True
         except Exception as e:
             print(e)

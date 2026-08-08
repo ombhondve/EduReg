@@ -124,9 +124,24 @@ def login():
         return jsonify({"success": False, "message": "Email and password are required"}), 400
 
     if role == "student":
-        table_name, col_name, login_role = "students", "email", "student"
+        directory = search_obj.fetch_user_by_any("student_directory", "email", email)
+        if not directory:
+            return jsonify({"success": False, "message": "Invalid email or password"}), 401
+        org_id = directory["organization_id"]
+
+        from student_Dash_APIs.model import student_models
+        tenant_db = student_models(organization_id=org_id)
+        user = tenant_db._query_one("SELECT * FROM students WHERE email=%s", (email,))
+        tenant_db.close()
+        if not user:
+            return jsonify({"success": False, "message": "Invalid email or password"}), 401
+        user["organization_id"] = org_id   # students table has no org_id column itself
+        login_role = "student"
     else:
         table_name, col_name, login_role = "organization_admins", "admin_email", "college_admin"
+        user = search_obj.fetch_user_by_any(table_name, col_name, email)
+        if not user:
+            return jsonify({"success": False, "message": "Invalid email or password"}), 401
 
     user = search_obj.fetch_user_by_any(table_name, col_name, email)
     print(user)

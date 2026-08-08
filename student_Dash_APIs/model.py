@@ -1,5 +1,7 @@
+import pymysql, os
+from pymysql import cursors
+from services.tenant_provisioning import tenant_db_name
 from shared.model import controller
-
 
 class student_models(controller):
     """Data layer for the student-facing portal. Deliberately reuses the
@@ -12,11 +14,23 @@ class student_models(controller):
 
     def __init__(self, organization_id=None):
         if organization_id is None:
-            # Same guard as collage_models — a student row only means
-            # anything inside its owning tenant's database, so never
-            # silently fall back to a shared/default connection.
             raise ValueError("student_models requires an organization_id")
-        super().__init__(organization_id=organization_id)
+        self.conn = pymysql.connect(
+            host=os.getenv("host"),
+            user=os.getenv("user"),
+            password=os.getenv("password"),
+            database=tenant_db_name(organization_id),
+            cursorclass=cursors.DictCursor,
+            autocommit=False,
+        )
+        self.cur = self.conn.cursor()
+
+    def close(self):
+        for closer in (self.cur, self.conn):
+            try:
+                closer.close()
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # Generic helpers (same small trio used by collage_models)

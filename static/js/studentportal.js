@@ -154,7 +154,7 @@ async function renderDashboardSP() {
         <div class="stat-icon amber">🎓</div>
         <div><div class="stat-value">${latestGrade ? latestGrade.grade : '-'}</div><div class="stat-label">Latest grade — ${latestGrade ? latestGrade.course : ''}</div></div>
       </div>
-      <div class="stat-card" style="cursor:pointer" onclick="navigateSP('documents')">
+      <div class="stat-card" style="cursor:pointer" data-action="navigate" data-page="documents">
         <div class="stat-icon red">📄</div>
         <div><div class="stat-value">${docs.length}</div><div class="stat-label">Documents — ${pendingDocs + rejectedDocs > 0 ? `${pendingDocs + rejectedDocs} need attention` : 'all verified'}</div></div>
       </div>
@@ -162,7 +162,7 @@ async function renderDashboardSP() {
     <div style="display:grid;grid-template-columns:1fr 320px;gap:1.5rem">
       <div class="card fade-in">
         <div class="card-header"><span class="card-title">Recent notices</span>
-          <button class="btn btn-secondary btn-sm" onclick="navigateSP('notices')">View all</button></div>
+          <button class="btn btn-secondary btn-sm" data-action="navigate" data-page="notices">View all</button></div>
         <div class="card-body">
           ${DEMO_DATA_SP.notices.slice(0, 2).map(noticeCardSP).join('')}
         </div>
@@ -170,17 +170,17 @@ async function renderDashboardSP() {
       <div class="card fade-in">
         <div class="card-header"><div class="card-title">Needs your attention</div></div>
         <div class="card-body" style="padding-top:0.5rem;display:flex;flex-direction:column;gap:8px">
-          ${pendingDocs > 0 ? `<div class="sp-alert-row sp-alert-amber" onclick="navigateSP('documents')">⏳ <strong>${pendingDocs}</strong> document${pendingDocs !== 1 ? 's' : ''} awaiting staff review</div>` : ''}
-          ${rejectedDocs > 0 ? `<div class="sp-alert-row sp-alert-red" onclick="navigateSP('documents')">⚠️ <strong>${rejectedDocs}</strong> document${rejectedDocs !== 1 ? 's' : ''} rejected — re-upload needed</div>` : ''}
-          ${fees.totalDue > 0 ? `<div class="sp-alert-row sp-alert-red" onclick="navigateSP('fees')">💳 <strong>₹${fees.totalDue.toLocaleString()}</strong> fee due</div>` : ''}
-          ${lastMsg && lastMsg.sender === 'staff' ? `<div class="sp-alert-row sp-alert-blue" onclick="navigateSP('messages')">💬 New reply from ${escapeHtmlSP(lastMsg.senderName || 'staff')}</div>` : ''}
+          ${pendingDocs > 0 ? `<div class="sp-alert-row sp-alert-amber" data-action="navigate" data-page="documents">⏳ <strong>${pendingDocs}</strong> document${pendingDocs !== 1 ? 's' : ''} awaiting staff review</div>` : ''}
+          ${rejectedDocs > 0 ? `<div class="sp-alert-row sp-alert-red" data-action="navigate" data-page="documents">⚠️ <strong>${rejectedDocs}</strong> document${rejectedDocs !== 1 ? 's' : ''} rejected — re-upload needed</div>` : ''}
+          ${fees.totalDue > 0 ? `<div class="sp-alert-row sp-alert-red" data-action="navigate" data-page="fees">💳 <strong>₹${fees.totalDue.toLocaleString()}</strong> fee due</div>` : ''}
+          ${lastMsg && lastMsg.sender === 'staff' ? `<div class="sp-alert-row sp-alert-blue" data-action="navigate" data-page="messages">💬 New reply from ${escapeHtmlSP(lastMsg.senderName || 'staff')}</div>` : ''}
           ${(pendingDocs + rejectedDocs === 0 && fees.totalDue === 0) ? `<div style="color:var(--text3);font-size:0.85rem;text-align:center;padding:12px">✅ You're all caught up</div>` : ''}
         </div>
         <div class="card-header" style="margin-top:0.75rem"><div class="card-title">Quick links</div></div>
         <div class="card-body" style="padding-top:0.5rem;display:flex;flex-wrap:wrap;gap:8px">
-          <button class="btn btn-secondary btn-sm" onclick="navigateSP('timetable')">🗓️ Timetable</button>
-          <button class="btn btn-secondary btn-sm" onclick="navigateSP('calendar')">📅 Calendar</button>
-          <button class="btn btn-secondary btn-sm" onclick="navigateSP('messages')">💬 Messages</button>
+          <button class="btn btn-secondary btn-sm" data-action="navigate" data-page="timetable">🗓️ Timetable</button>
+          <button class="btn btn-secondary btn-sm" data-action="navigate" data-page="calendar">📅 Calendar</button>
+          <button class="btn btn-secondary btn-sm" data-action="navigate" data-page="messages">💬 Messages</button>
         </div>
       </div>
     </div>`;
@@ -213,7 +213,7 @@ async function renderProfileSP() {
       </div>
     </div></div>
     <div style="display:flex;justify-content:flex-end;margin-top:1rem" class="fade-in">
-      <button class="btn btn-primary" onclick="openIdCardSP()">
+      <button class="btn btn-primary" data-action="open-id-card">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="12" r="2"/><line x1="14" y1="10" x2="18" y2="10"/><line x1="14" y1="14" x2="18" y2="14"/></svg>
         View digital ID card
       </button>
@@ -362,7 +362,7 @@ async function renderDocumentsSP() {
     </div>
     <div class="toolbar fade-in">
       <span style="font-size:0.8rem;color:var(--text3)">Staff review each document you submit — you can upload as many as you need</span>
-      <button class="btn btn-primary" style="margin-left:auto" onclick="openDocUploadModalSP()">
+      <button class="btn btn-primary" style="margin-left:auto" data-action="open-doc-upload">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload document
       </button>
@@ -386,7 +386,7 @@ function docCardSP(d) {
       ${d.status === 'Rejected' && d.reviewNote ? `<div style="font-size:0.78rem;color:#dc2626;margin-top:4px">⚠️ ${escapeHtmlSP(d.reviewNote)}</div>` : ''}
     </div>
     <span class="status ${statusClass}"><span class="status-dot"></span>${d.status}</span>
-    ${d.status === 'Rejected' ? `<button class="btn btn-secondary btn-sm" onclick="openDocUploadModalSP('${d.docType}')">Re-upload</button>` : ''}
+    ${d.status === 'Rejected' ? `<button class="btn btn-secondary btn-sm" data-action="open-doc-upload" data-prefill="${escapeHtmlSP(d.docType)}">Re-upload</button>` : ''}
   </div>`;
 }
 
@@ -437,8 +437,8 @@ async function renderMessagesSP() {
         ${messages.length ? messages.map(msgBubbleSP).join('') : `<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-title">No messages yet</div><div style="font-size:0.82rem">Send a message to your institution's staff below.</div></div>`}
       </div>
       <div style="display:flex;gap:10px;padding:1rem 1.25rem;border-top:1px solid var(--border)">
-        <input type="text" id="spMsgInput" placeholder="Type a message…" style="flex:1" onkeydown="if(event.key==='Enter')sendMessageSP()">
-        <button class="btn btn-primary" onclick="sendMessageSP()">Send</button>
+        <input type="text" id="spMsgInput" placeholder="Type a message…" style="flex:1">
+        <button class="btn btn-primary" data-action="send-message">Send</button>
       </div>
     </div>`;
   const thread = document.getElementById('spMsgThread');
@@ -628,6 +628,60 @@ function handleLogoutSP() {
   window.location.href = 'login.html';
 }
 
+// ===== EVENT DELEGATION =====
+// The backend sends a strict Content-Security-Policy (script-src 'self',
+// no 'unsafe-inline'), which silently blocks inline onclick/onchange/
+// onkeydown attributes in the browser. Every interactive element — static
+// in student_portal.html or generated in the render*SP() functions above —
+// uses a data-action attribute instead, and this single delegated listener
+// on document handles all of them, including content that gets re-rendered
+// after this listener is attached.
+document.addEventListener('click', (event) => {
+  const navItem = event.target.closest('.nav-item[data-page]');
+  if (navItem) { navigateSP(navItem.dataset.page); return; }
+
+  // Clicking directly on a modal's dimmed backdrop closes it (same
+  // behavior the old inline `if(event.target===this)` check gave us).
+  if (event.target.classList.contains('modal-overlay')) {
+    closeOverlaySP(event.target.id);
+    return;
+  }
+
+  const actionEl = event.target.closest('[data-action]');
+  if (!actionEl) return;
+  const { action } = actionEl.dataset;
+
+  switch (action) {
+    case 'navigate':
+      navigateSP(actionEl.dataset.page);
+      break;
+    case 'logout':
+      handleLogoutSP();
+      break;
+    case 'open-id-card':
+      openIdCardSP();
+      break;
+    case 'open-doc-upload':
+      openDocUploadModalSP(actionEl.dataset.prefill);
+      break;
+    case 'submit-doc-upload':
+      submitDocUploadSP();
+      break;
+    case 'close-overlay':
+      closeOverlaySP(actionEl.dataset.modal);
+      break;
+    case 'trigger-file':
+      document.getElementById(actionEl.dataset.target)?.click();
+      break;
+    case 'send-message':
+      sendMessageSP();
+      break;
+    case 'print':
+      window.print();
+      break;
+  }
+});
+
 (function initStudentPortal() {
   const user = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
   if (user) {
@@ -646,5 +700,17 @@ function handleLogoutSP() {
   }
   const needsAttention = DEMO_DATA_SP.documents.filter(d => d.status !== 'Verified').length;
   updateDocBadgeSP(needsAttention);
+
+  // File input's change and the message box's Enter-to-send were also
+  // inline handlers, blocked by the same CSP as the onclicks above — these
+  // elements live in static HTML (not re-rendered), so wiring them once
+  // here (rather than via the click-only delegation above) is sufficient.
+  document.getElementById('spDocFileInput')?.addEventListener('change', function () {
+    document.getElementById('spDocFileLabel').textContent = '📄 ' + (this.files[0]?.name || '');
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target.id === 'spMsgInput') sendMessageSP();
+  });
+
   navigateSP('dashboard');
 })();

@@ -135,18 +135,13 @@ def login():
         tenant_db.close()
         if not user:
             return jsonify({"success": False, "message": "Invalid email or password"}), 401
-        user["organization_id"] = org_id   # students table has no org_id column itself
+        user["organization_id"] = org_id
         login_role = "student"
     else:
         table_name, col_name, login_role = "organization_admins", "admin_email", "college_admin"
         user = search_obj.fetch_user_by_any(table_name, col_name, email)
         if not user:
             return jsonify({"success": False, "message": "Invalid email or password"}), 401
-
-    user = search_obj.fetch_user_by_any(table_name, col_name, email)
-    print(user)
-    if not user:
-        return jsonify({"success": False, "message": "Invalid email or password"}), 401
 
     db_hash = user.get("hashed_password")
     if not db_hash or not check_hash_pass(password, db_hash):

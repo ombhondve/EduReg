@@ -13,13 +13,10 @@ class collage_models(controller):
     the three generic helpers (_query_all / _query_one / _execute) so new
     endpoints only ever need a SQL string, not new plumbing.
     """
-
     def __init__(self, organization_id=None):
         if organization_id is None:
-            # No tenant context — don't silently fall back to a shared/
-            # default database. Every caller of collage_models must know
-            # which college it's acting on.
-            raise ValueError("collage_models requires an organization_id")
+                raise ValueError("collage_models requires an organization_id")
+        self.organization_id = organization_id   # ← add this line
 
         self.conn = pymysql.connect(
             host=os.getenv("host"),
@@ -190,12 +187,11 @@ class collage_models(controller):
             directory = search_class()
             directory.cur.execute(
                 """
-                INSERT INTO student_directory (organization_id, name, email, status)
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE organization_id=VALUES(organization_id), name=VALUES(name)
+                INSERT INTO student_directory (email, organization_id)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE organization_id = VALUES(organization_id)
                 """,
-                (self.organization_id, f"{data.get('firstName','')} {data.get('lastName','')}".strip(),
-                data.get('email'), data.get('status', 'Active')),
+                (data.get('email'), self.organization_id),
             )
             directory.conn.commit()
             directory.close()
@@ -218,9 +214,19 @@ class collage_models(controller):
         return self.fetch_student_data(student_id)
 
     def Delete_student(self, student_id):
+        # fetch the email first, since you need it to remove the directory row
+        row = self._query_one("SELECT email FROM students WHERE id=%s", (student_id,))
         result = self._execute("DELETE FROM students WHERE id=%s", (student_id,))
         if result is None:
             return jsonify({"error": "Failed to delete student"}), 500
+        if row:
+            try:
+                directory = search_class()
+                directory.cur.execute("DELETE FROM student_directory WHERE email=%s", (row["email"],))
+                directory.conn.commit()
+                directory.close()
+            except Exception as e:
+                print(f"Failed to remove from student_directory: {e}")
         return jsonify({"message": "Student deleted successfully"}), 200
 
     def fetch_students_export(self):

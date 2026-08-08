@@ -137,20 +137,7 @@ MASTER_TABLE_STATEMENTS = [
         scope VARCHAR(100) DEFAULT NULL
     )
     """,
-    """
-    CREATE TABLE IF NOT EXISTS student_directory (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        organization_id INT NOT NULL,
-        name VARCHAR(150) NOT NULL,
-        roll_no VARCHAR(60) DEFAULT NULL,
-        program VARCHAR(150) DEFAULT NULL,
-        status VARCHAR(40) NOT NULL DEFAULT 'Active',
-        email VARCHAR(150) DEFAULT NULL,
-        last_active DATETIME DEFAULT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (organization_id) REFERENCES organizations(organization_id) ON DELETE CASCADE
-    )
-    """,
+
 ]
 
 # Same defaults get_feature_flags() already falls back to, seeded once so
@@ -813,42 +800,23 @@ class superadmin_models(controller):
         try:
             query = """
                 SELECT
-                    st.id                AS id,
-                    st.name              AS name,
-                    st.roll_no           AS rollNo,
                     st.organization_id   AS schoolId,
-                    o.name               AS schoolName,
-                    st.program           AS program,
-                    st.status            AS status,
-                    st.email             AS email,
-                    st.last_active       AS lastActiveRaw,
-                    st.created_at        AS enrolledRaw
+                    o.name                AS schoolName,
+                    st.email             AS email
                 FROM student_directory st
                 JOIN organizations o ON o.organization_id = st.organization_id
-                LEFT JOIN organization_plans p ON p.organization_id = st.organization_id
                 WHERE 1=1
             """
             values = []
             if search:
-                query += " AND (st.name LIKE %s OR st.roll_no LIKE %s OR st.email LIKE %s)"
-                values.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+                query += " AND st.email LIKE %s"
+                values.append(f"%{search}%")
             if school_id:
                 query += " AND st.organization_id = %s"
                 values.append(school_id)
-            if status:
-                query += " AND st.status = %s"
-                values.append(status)
-            if plan:
-                query += " AND p.plan = %s"
-                values.append(plan)
-            query += " ORDER BY st.created_at DESC"
-
+            query += " ORDER BY st.email"
             self.cur.execute(query, values)
-            rows = self.cur.fetchall()
-            for row in rows:
-                row["lastActive"] = self._time_ago(row.pop("lastActiveRaw", None))
-                row["enrolled"] = self._time_ago(row.pop("enrolledRaw", None))
-            return rows
+            return self.cur.fetchall()
         except Exception as e:
             print(e)
             return None

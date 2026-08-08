@@ -26,7 +26,12 @@ def get_collage_db():
 
 def get_student_db():
     if 'obj_stu' not in g:
-        g.obj_stu = student_models()
+        g.obj_stu = (getattr(request, 'auth_user', None) or {}).get('organization_id')
+        if not g.obj_stu:
+            g.obj_stu = request.args.get('org_id') or request.view_args and request.view_args.get('org_id')
+        if not g.obj_stu:
+            raise ValueError("No organization_id available to resolve tenant database")
+        g.obj_stu = student_models(organization_id=g.obj_stu)     
     return g.obj_stu
 
 def get_main_db():

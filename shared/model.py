@@ -97,12 +97,7 @@ CORE_TABLE_STATEMENTS = [
             organization_id INT NOT NULL
         )
         """,
-        """
-        CREATE TABLE IF NOT EXISTS student_directory (
-            email VARCHAR(150) PRIMARY KEY,
-            organization_id INT NOT NULL
-        )
-        """,
+    
     ]
 
 

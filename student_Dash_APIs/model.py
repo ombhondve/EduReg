@@ -5,11 +5,11 @@ from shared.model import controller
 
 class student_models(controller):
     """Data layer for the student-facing portal. Deliberately reuses the
-    same tables collage_models writes to (students, courses, fees,
+    same tables collage_models writes to (students, courses, fee_records,
     documents, messages, timetable, calendar_events, notifications,
-    attendance) — a student's portal is just their own scoped view of the
-    data the college dashboard already manages, so there's one source of
-    truth instead of a parallel copy.
+    attendance, grades) — a student's portal is just their own scoped view
+    of the data the college dashboard already manages, so there's one
+    source of truth instead of a parallel copy.
     """
 
     def __init__(self, organization_id=None):
@@ -187,7 +187,7 @@ class student_models(controller):
 
     def get_fees(self, student_id):
         rows = self._query_all(
-            "SELECT * FROM fees WHERE student_id = %s ORDER BY due_date DESC",
+            "SELECT * FROM fee_records WHERE student_id = %s ORDER BY due_date DESC",
             (student_id,),
         )
         total_due = sum(float(r["amount"]) for r in rows if r["status"] != "Paid")

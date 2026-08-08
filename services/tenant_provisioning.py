@@ -5,8 +5,8 @@
 # Every college/organization gets its own isolated MySQL database named
 #   edureg_org_{organization_id}
 # containing all of the tables that college's dashboard needs (students,
-# courses, documents, attendance, fees, timetable, calendar, messages,
-# staff, notifications, activity log, app settings).
+# courses, documents, attendance, grades, fee_records, timetable, calendar,
+# messages, staff, notifications, activity log, app settings).
 #
 # This is what actually powers "database-per-tenant" isolation: instead of
 # every college's rows living side-by-side in one shared database (kept
@@ -134,7 +134,20 @@ TENANT_TABLE_STATEMENTS = [
     )
     """,
     """
-    CREATE TABLE IF NOT EXISTS fees (
+    CREATE TABLE IF NOT EXISTS grades (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        student_id INT NOT NULL,
+        course_id INT DEFAULT NULL,
+        term VARCHAR(60) DEFAULT NULL,
+        grade VARCHAR(10) DEFAULT NULL,
+        status VARCHAR(40) NOT NULL DEFAULT 'Published',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+        FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE SET NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS fee_records (
         id INT AUTO_INCREMENT PRIMARY KEY,
         student_id INT DEFAULT NULL,
         student_name VARCHAR(200) DEFAULT NULL,
